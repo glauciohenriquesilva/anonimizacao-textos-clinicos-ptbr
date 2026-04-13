@@ -1,0 +1,42 @@
+# Dados sensíveis — NUNCA versionar
+data/raw/
+data/processed/
+data/annotated/
+data/external/
+
+# Modelos treinados (grandes demais)
+outputs/models/
+*.pt
+*.bin
+*.safetensors
+
+# Ambiente Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Variáveis de ambiente
+.env
+
+# Django
+*.log
+db.sqlite3
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDEs
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Outputs intermediários (manter só finais)
+outputs/results/*.tmp

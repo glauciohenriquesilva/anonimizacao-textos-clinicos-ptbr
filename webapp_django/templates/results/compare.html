@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Comparar Modelos{% endblock %}
+{% block nav_results %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-bar-chart-line me-2"></i>Comparação de Modelos</h2>
+  <a href="{% url 'results:export' %}" class="btn btn-outline-success btn-sm">
+    <i class="bi bi-download me-1"></i>Exportar CSV
+  </a>
+</div>
+
+{% if results %}
+<!-- Tabela de resultados -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Tabela de Resultados — Framework TILD</div>
+  <div class="table-responsive">
+    <table class="table table-hover table-bordered mb-0 align-middle text-center">
+      <thead class="table-dark">
+        <tr>
+          <th rowspan="2" class="align-middle">Modelo</th>
+          <th colspan="3" class="border-bottom-0 text-warning">T — Técnica</th>
+          <th colspan="1" class="border-bottom-0 text-info">I — Informacional</th>
+          <th colspan="2" class="border-bottom-0 text-success">L — Legal</th>
+        </tr>
+        <tr>
+          <th class="text-warning small">Precision</th>
+          <th class="text-warning small">Recall</th>
+          <th class="text-warning small fw-bold">F1</th>
+          <th class="text-info small">ΔF1</th>
+          <th class="text-success small">Coverage</th>
+          <th class="text-success small">Prec_anon</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr {% if forloop.first %}class="table-active"{% endif %}>
+          <td class="text-start fw-semibold">
+            {{ r.experiment.get_model_name_display }}
+            {% if forloop.first %}<span class="badge bg-warning text-dark ms-1">Best</span>{% endif %}
+          </td>
+          <td>{{ r.precision_overall|floatformat:4|default:"—" }}</td>
+          <td>{{ r.recall_overall|floatformat:4|default:"—" }}</td>
+          <td class="fw-bold">{{ r.f1_overall|floatformat:4|default:"—" }}</td>
+          <td>
+            {% if r.delta_f1 is not None %}
+              <span class="{% if r.delta_f1 >= -0.02 %}text-success{% else %}text-danger{% endif %}">
+                {{ r.delta_f1|floatformat:4 }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ r.phi_coverage|floatformat:2|default:"—" }}</td>
+          <td>{{ r.phi_precision_anon|floatformat:2|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Gráfico Chart.js -->
+<div class="card">
+  <div class="card-header fw-semibold">Gráfico F1 por Modelo</div>
+  <div class="card-body">
+    <canvas id="chartF1" height="80"></canvas>
+  </div>
+</div>
+
+{% else %}
+<div class="alert alert-warning">
+  Nenhum resultado disponível ainda. Execute os experimentos e importe os resultados.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if chart_data_json %}
+<script>
+  const chartData = {{ chart_data_json|safe }};
+  const ctx = document.getElementById("chartF1").getContext("2d");
+  new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: chartData.labels,
+      datasets: [
+        {
+          label: "F1 (PHI NER)",
+          data: chartData.f1,
+          backgroundColor: "rgba(13, 110, 253, 0.7)",
+        },
+        {
+          label: "ΔF1 (utilidade)",
+          data: chartData.delta_f1,
+          backgroundColor: "rgba(25, 135, 84, 0.7)",
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: "top" } },
+      scales: {
+        y: { beginAtZero: false, min: -0.1, max: 1.0,
+             title: { display: true, text: "Valor da Métrica" } }
+      }
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}

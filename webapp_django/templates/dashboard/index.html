@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h2>
+
+<!-- Cards de estatísticas -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Total de Documentos</div>
+        <div class="fs-3 fw-bold">{{ n_docs_total|default:"—" }}</div>
+        <div class="small text-muted">
+          {{ n_docs_prescricoes|default:"0" }} prescrições ·
+          {{ n_docs_pareceres|default:"0" }} pareceres
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="card metric-card green h-100">
+      <div class="card-body">
+        <div class="text-muted small">Sentenças Anotadas</div>
+        <div class="fs-3 fw-bold">{{ n_annotated|default:"—" }}</div>
+        <div class="small text-muted">gold standard</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="card metric-card orange h-100">
+      <div class="card-body">
+        <div class="text-muted small">Experimentos</div>
+        <div class="fs-3 fw-bold">{{ n_experiments|default:"—" }}</div>
+        <div class="small text-muted">
+          {{ n_exp_completed|default:"0" }} concluídos ·
+          {{ n_exp_running|default:"0" }} rodando
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="card metric-card red h-100">
+      <div class="card-body">
+        <div class="text-muted small">Status</div>
+        <div class="fs-5 fw-bold mt-1">
+          {% if n_exp_completed > 0 %}
+            <span class="text-success"><i class="bi bi-check-circle-fill"></i> Resultados disponíveis</span>
+          {% else %}
+            <span class="text-warning"><i class="bi bi-hourglass-split"></i> Em andamento</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pipeline visual -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold"><i class="bi bi-diagram-3 me-2"></i>Pipeline do Projeto</div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-2 align-items-center justify-content-center py-2">
+      
+      <div class="badge bg-primary fs-6 px-3 py-2">{{ forloop.counter }}. {{ step }}</div>
+      
+
+    </div>
+  </div>
+</div>
+
+<!-- Últimos experimentos -->
+{% if recent_experiments %}
+<div class="card">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-clock-history me-2"></i>Últimos Experimentos
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Nome</th><th>Modelo</th><th>F1</th><th>Status</th><th>Data</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for exp in recent_experiments %}
+        <tr>
+          <td><a href="{% url 'experiments:detail' exp.pk %}">{{ exp.name }}</a></td>
+          <td><code>{{ exp.get_model_name_display }}</code></td>
+          <td>
+            {% if exp.result and exp.result.f1_overall %}
+              <strong>{{ exp.result.f1_overall|floatformat:4 }}</strong>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if exp.status == "completed" %}<span class="badge bg-success">Concluído</span>
+            {% elif exp.status == "running" %}<span class="badge bg-warning text-dark">Rodando</span>
+            {% elif exp.status == "failed" %}<span class="badge bg-danger">Falhou</span>
+            {% else %}<span class="badge bg-secondary">Pendente</span>{% endif %}
+          </td>
+          <td class="small text-muted">{{ exp.created_at|date:"d/m/Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
