@@ -1,0 +1,103 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="rA-bJyMWOJ6f-Zd59Pg1" name="Página-1">
+    <mxGraphModel grid="0" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1400" pageHeight="1550" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="tit" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;i&gt;2) Reconhecimento de Entidades Nomeadas (NER) — Detalhamento&lt;/i&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="40" width="1300" x="50" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_manual" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;Etapa manual (humano)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="28" width="180" x="50" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_gpu" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;Execução GPU (Colab)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="28" width="180" x="240" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" parent="1" style="swimlane;fontStyle=1;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;startSize=30;shadow=1;textShadow=1;" value="2.1) Anotação Gold Standard  ⚠ ETAPA MANUAL" vertex="1">
+          <mxGeometry height="220" width="1300" x="50" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="t211" parent="c21" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.1.1) Seleção da amostra&lt;br&gt;(Iterative Stratification)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="30" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t212" parent="c21" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.1.2) Configuração&lt;br&gt;do Doccano&lt;br&gt;(projeto, labels, usuários)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="350" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t213" parent="c21" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.1.3) Anotação&lt;br&gt;Anotador 1&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="670" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t214" parent="c21" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.1.4) Anotação&lt;br&gt;Anotador 2&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="990" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t215" parent="c21" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.1.5) Cálculo Cohen&#39;s Kappa&lt;br&gt;(meta: κ ≥ 0.80)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="30" y="134" as="geometry" />
+        </mxCell>
+        <mxCell id="t216" parent="c21" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.1.6) Adjudicação de&lt;br&gt;discordâncias&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="460" y="134" as="geometry" />
+        </mxCell>
+        <mxCell id="t217" parent="c21" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.1.7) Exportação do corpus&lt;br&gt;anotado final (CoNLL)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="890" y="134" as="geometry" />
+        </mxCell>
+        <mxCell id="a_21_22" edge="1" parent="1" source="c21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" target="c22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" parent="1" style="swimlane;fontStyle=1;fontSize=14;fillColor=#f5f5f5;strokeColor=#555555;startSize=30;shadow=1;textShadow=1;" value="2.2) Divisão Treino / Dev / Teste" vertex="1">
+          <mxGeometry height="130" width="1300" x="50" y="385" as="geometry" />
+        </mxCell>
+        <mxCell id="t221" parent="c22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.2.1) Iterative Stratification&lt;br&gt;(70% / 15% / 15%)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="30" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t222" parent="c22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.2.2) Verificação de distribuição&lt;br&gt;(nenhuma entidade zerada&lt;br&gt;em dev/teste)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="460" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t223" parent="c22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.2.3) Exportação&lt;br&gt;train.conll / dev.conll / test.conll&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="890" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="a_22_23" edge="1" parent="1" source="c22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" target="c23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c23" parent="1" style="swimlane;fontStyle=1;fontSize=14;fillColor=#f5f5f5;strokeColor=#555555;startSize=30;shadow=1;textShadow=1;" value="2.3) Treinamento dos Modelos" vertex="1">
+          <mxGeometry height="220" width="1300" x="50" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="t231" parent="c23" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.3.1) CRF Baseline&lt;br&gt;(local, CPU)&lt;br&gt;Extração features + L-BFGS&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="590" x="30" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t232" parent="c23" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.3.2) BioBERTpt-clin&lt;br&gt;(Colab T4)&lt;br&gt;pucpr/biobertpt-clin&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="680" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t233" parent="c23" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.3.3) BERTimbau-leNER&lt;br&gt;(Colab T4)&lt;br&gt;bert-base-cased-pt-lenerbr&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="990" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t234" parent="c23" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.3.4) mmBERT&lt;br&gt;(Colab T4)&lt;br&gt;jhu-clsp/mmBERT&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="590" x="30" y="134" as="geometry" />
+        </mxCell>
+        <mxCell id="t235" parent="c23" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.3.5) ModernBERT&lt;br&gt;(Colab A100, ctx 8192)&lt;br&gt;answerdotai/ModernBERT-base&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="590" x="680" y="134" as="geometry" />
+        </mxCell>
+        <mxCell id="a_23_24" edge="1" parent="1" source="c23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" target="c24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c24" parent="1" style="swimlane;fontStyle=1;fontSize=13;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;shadow=1;textShadow=1;" value="2.4) Avaliação NER — Dimensão T do TILD" vertex="1">
+          <mxGeometry height="220" width="1300" x="50" y="835" as="geometry" />
+        </mxCell>
+        <mxCell id="t241" parent="c24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.4.1) Predição no conjunto&lt;br&gt;de teste (cada modelo)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="30" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t242" parent="c24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.4.2) F1 entity-level geral&lt;br&gt;(seqeval, micro-avg)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="460" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t243" parent="c24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.4.3) F1 por tipo de&lt;br&gt;entidade PHI&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="890" y="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t244" parent="c24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.4.4) F1 token-level&lt;br&gt;(comparativo)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="590" x="30" y="134" as="geometry" />
+        </mxCell>
+        <mxCell id="t245" parent="c24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;2.4.5) Tabela comparativa&lt;br&gt;dos 5 modelos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="590" x="680" y="134" as="geometry" />
+        </mxCell>
+        <mxCell id="Pu7HHYCIZP7nMzM7aCzD-1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;i&gt;Por Gláucio Silva&lt;/i&gt;&lt;div&gt;&lt;i&gt;2026&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="130" x="1220" y="1398" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

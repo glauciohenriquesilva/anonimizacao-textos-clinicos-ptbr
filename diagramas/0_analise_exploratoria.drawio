@@ -1,0 +1,97 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="kBlnqP_PLPDf82qPszXj" name="Página-1">
+    <mxGraphModel grid="0" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1400" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="tit" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;i&gt;0) Análise Exploratória — Detalhamento&lt;/i&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="40" width="1300" x="50" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="c01" parent="1" style="swimlane;fontStyle=1;fontSize=14;fillColor=#f5f5f5;strokeColor=#555555;startSize=30;shadow=1;textShadow=1;" value="0.1) Leitura do DataSet" vertex="1">
+          <mxGeometry height="130" width="1300" x="50" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="t011" parent="c01" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.1.1) Leitura CSV&lt;br&gt;prescrições&lt;br&gt;(sep=&quot;;&quot;, UTF-8)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="30" y="46" as="geometry" />
+        </mxCell>
+        <mxCell id="t012" parent="c01" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.1.2) Leitura CSV&lt;br&gt;pareceres&lt;br&gt;(sep=&quot;;&quot;, UTF-8)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="460" y="46" as="geometry" />
+        </mxCell>
+        <mxCell id="t013" parent="c01" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.1.3) Validação de schema&lt;br&gt;(colunas esperadas presentes)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="380" x="890" y="46" as="geometry" />
+        </mxCell>
+        <mxCell id="a_01_02" edge="1" parent="1" source="c01" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" target="c02">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c02" parent="1" style="swimlane;fontStyle=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#555555;startSize=30;textShadow=1;shadow=1;" value="0.2) Estatísticas Descritivas" vertex="1">
+          <mxGeometry height="130" width="1300" x="50" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="t021" parent="c02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.2.1) Contagem total&lt;br&gt;de registros por tipo&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="224" x="30" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t022" parent="c02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.2.2) Pacientes únicos&lt;br&gt;(cd_paciente)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="224" x="284" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t023" parent="c02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.2.3) Período coberto&lt;br&gt;(dt_atendimento min/max)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="224" x="538" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t024" parent="c02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.2.4) Top especialidades&lt;br&gt;médicas&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="224" x="792" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t025" parent="c02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.2.5) Contagem de&lt;br&gt;hospitais&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="224" x="1046" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="a_02_03" edge="1" parent="1" source="c02" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" target="c03">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c03" parent="1" style="swimlane;fontStyle=1;fontSize=14;fillColor=#f5f5f5;strokeColor=#555555;startSize=30;textShadow=1;shadow=1;" value="0.3) Distribuição de Tokens" vertex="1">
+          <mxGeometry height="130" width="1300" x="50" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="t031" parent="c03" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.3.1) Tokenização simples&lt;br&gt;(split por espaço)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="30" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t032" parent="c03" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.3.2) Cálculo min / mediana /&lt;br&gt;média / máx / p25 / p75&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="350" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t033" parent="c03" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.3.3) Distribuição de&lt;br&gt;caracteres por doc&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="670" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t034" parent="c03" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.3.4) Distribuição de&lt;br&gt;sentenças por doc&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="990" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="a_03_04" edge="1" parent="1" source="c03" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" target="c04">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c04" parent="1" style="swimlane;fontStyle=1;fontSize=14;fillColor=#f5f5f5;strokeColor=#555555;startSize=30;textShadow=1;shadow=1;" value="0.4) Classificação do Tipo de Texto" vertex="1">
+          <mxGeometry height="130" width="1300" x="50" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="t041" parent="c04" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.4.1) Detecção texto livre vs.&lt;br&gt;template estruturado&lt;br&gt;(marcadores: &quot;( X )&quot;, &quot;SINAIS VITAIS:&quot;...)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="590" x="30" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t042" parent="c04" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#555555;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.4.2) Cálculo da proporção&lt;br&gt;texto livre / template por tipo de doc&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="590" x="680" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="a_04_05" edge="1" parent="1" source="c04" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" target="c05">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c05" parent="1" style="swimlane;fontStyle=1;fontSize=14;fillColor=#d5e8d4;strokeColor=#82b366;startSize=30;textShadow=1;shadow=1;" value="0.5) Geração de Saídas" vertex="1">
+          <mxGeometry height="130" width="1300" x="50" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="t051" parent="c05" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.5.1) Tabela 1 da dissertação&lt;br&gt;(CSV + Excel)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="30" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t052" parent="c05" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.5.2) Histograma de&lt;br&gt;distribuição de tokens&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="350" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t053" parent="c05" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.5.3) Gráfico top&lt;br&gt;especialidades&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="670" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="t054" parent="c05" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;textShadow=0;shadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;0.5.4) Exportação JSON&lt;br&gt;com stats completas&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="990" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="AZAjSJ4OZrRQvhUAnCMO-1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;i&gt;Por Gláucio Silva&lt;/i&gt;&lt;div&gt;&lt;i&gt;2026&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="130" x="1220" y="1023" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
