@@ -1,319 +1,425 @@
 """
-Análise Exploratória do Dataset de Textos Clínicos
-====================================================
-Gera a "Tabela 1 – Caracterização exploratória das amostras iniciais
-de textos clínicos" conforme definido no anteprojeto.
+Análise exploratória do corpus clínico.
 
-Uso:
-    python src/analysis/exploratory.py \
-        --prescricoes data/raw/prescricoes.csv \
-        --pareceres data/raw/pareceres.csv \
-        --output outputs/exploratory_analysis/
-
-Referência: Schiezaro et al. (2026); Silva & Pazin-Filho (2025)
+Etapa 0 do pipeline — tarefas 0.1 a 0.5:
+  0.1  Leitura e validação dos CSVs
+  0.2  Estatísticas descritivas
+  0.3  Distribuição de tokens, caracteres e sentenças
+  0.4  Classificação do tipo de texto (livre vs. template)
+  0.5  Geração de saídas (Tabela 1, histograma, gráfico, JSON)
 """
 
-import argparse
-import csv
 import json
-import os
+import re
 from pathlib import Path
-from datetime import datetime
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import pandas as pd
 import seaborn as sns
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Schema esperado
+# ──────────────────────────────────────────────────────────────────────────────
 
-# ─── Constantes ────────────────────────────────────────────────────────────────
-
-TEXT_COLUMN = {
-    "prescricoes": "ds_evolucao",
-    "pareceres": "ds_parecer",
-}
-
-DATE_COLUMN = {
-    "prescricoes": "dt_pre_med",
-    "pareceres": "dt_parecer",
-}
-
-# Padrões de template estruturado (formulários de UTI/enfermagem)
-TEMPLATE_MARKERS = [
-    "( X )", "(  X  )", "( X)", "(X )",  # checkboxes
-    "SISTEMA NEUROLÓGICO", "SISTEMA CARDIOVASCULAR",
-    "SINAIS VITAIS:", "SISTEMA RESPIRATÓRIO",
-    "DIAGNÓSTICOS DE ENFERMAGEM",
+COMMON_COLUMNS = [
+    "cd_paciente",
+    "nm_convenio",
+    "dt_atendimento",
+    "tp_atendimento",
+    "ds_ori_ate",
+    "ds_servico",
+    "ds_mot_alt",
+    "ds_cid",
+    "ds_tipo_internacao",
+    "ds_loc_proced",
+    "ds_multi_empresa",
+    "ds_especialid_atendimento",
+    "ds_tip_mar",
 ]
 
+COLUMNS_PRESCRICOES = COMMON_COLUMNS + ["ds_evolucao"]
+COLUMNS_PARECERES   = COMMON_COLUMNS + ["ds_parecer"]
 
-# ─── Funções auxiliares ─────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Padrões que indicam template estruturado
+# ──────────────────────────────────────────────────────────────────────────────
 
-def load_csv(filepath: str) -> pd.DataFrame:
+_TEMPLATE_PATTERNS = [
+    r"^#\s+\w",            # linhas iniciando com # (ex: # HDA:, # ORTOPEDIA)
+    r"\(\s*[XxSs]\s*\)",   # checkboxes: ( X ) ( S )
+    r"SINAIS VITAIS\s*:",
+    r"\bPA\s*:",
+    r"\bFC\s*:",
+    r"\bSAT\s*:",
+    r"\bTAX\s*:",
+    r"\bFR\s*:",
+]
+_TEMPLATE_RE = re.compile("|".join(_TEMPLATE_PATTERNS), re.MULTILINE)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 0.1) Leitura e validação
+# ──────────────────────────────────────────────────────────────────────────────
+
+def load_csv(path: Path, expected_columns: list[str]) -> pd.DataFrame:
     """
-    Carrega CSV com separador ';' e tratamento de encoding.
-    Os campos de texto podem conter quebras de linha e ponto-e-vírgula internos.
+    Lê um CSV clínico (sep=';', UTF-8 com BOM) e valida o schema.
+
+    Parâmetros
+    ----------
+    path : caminho do arquivo CSV
+    expected_columns : colunas que devem estar presentes
+
+    Retorna
+    -------
+    DataFrame com dt_atendimento convertido para datetime.
+
+    Lança
+    -----
+    ValueError se alguma coluna esperada estiver ausente.
+    FileNotFoundError se o arquivo não existir.
     """
-    return pd.read_csv(
-        filepath,
+    if not path.exists():
+        raise FileNotFoundError(f"Arquivo não encontrado: {path}")
+
+    df = pd.read_csv(
+        path,
         sep=";",
-        quoting=csv.QUOTE_MINIMAL,
-        encoding="utf-8",
+        encoding="utf-8-sig",
         dtype=str,
-        on_bad_lines="warn",
+        low_memory=False,
+    )
+    df.columns = [c.strip() for c in df.columns]
+
+    missing = [c for c in expected_columns if c not in df.columns]
+    if missing:
+        raise ValueError(f"Colunas ausentes em '{path.name}': {missing}")
+
+    df["dt_atendimento"] = pd.to_datetime(
+        df["dt_atendimento"], format="%d/%m/%Y", errors="coerce"
     )
 
+    # Garante que a coluna de texto não seja NaN
+    text_col = "ds_evolucao" if "ds_evolucao" in df.columns else "ds_parecer"
+    df[text_col] = df[text_col].fillna("")
 
-def count_tokens_simple(text: str) -> int:
-    """Conta tokens por espaço em branco (estimativa rápida sem tokenizador NLP)."""
-    if not isinstance(text, str):
+    return df
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 0.3) Helpers de métricas textuais
+# ──────────────────────────────────────────────────────────────────────────────
+
+def count_tokens(text: str) -> int:
+    """Conta tokens por split simples em espaços."""
+    return len(text.split()) if isinstance(text, str) else 0
+
+
+def count_chars(text: str) -> int:
+    """Conta caracteres totais do texto."""
+    return len(text) if isinstance(text, str) else 0
+
+
+def count_sentences(text: str) -> int:
+    """
+    Estima o número de sentenças contando linhas não-vazias.
+    Adequado para textos clínicos com quebras de linha explícitas.
+    """
+    if not isinstance(text, str) or not text.strip():
         return 0
-    return len(text.split())
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    return max(len(lines), 1)
 
 
-def count_sentences_simple(text: str) -> int:
-    """Estima número de sentenças por pontuação final."""
-    if not isinstance(text, str):
-        return 0
-    return max(1, text.count(".") + text.count("!") + text.count("?"))
-
-
-def is_template(text: str) -> bool:
-    """Detecta se o texto é um template estruturado com checkboxes/formulário."""
-    if not isinstance(text, str):
-        return False
-    count = sum(1 for marker in TEMPLATE_MARKERS if marker in text.upper())
-    return count >= 2
-
+# ──────────────────────────────────────────────────────────────────────────────
+# 0.4) Classificação do tipo de texto
+# ──────────────────────────────────────────────────────────────────────────────
 
 def classify_text_type(text: str) -> str:
-    """Classifica o texto como 'template_estruturado' ou 'texto_livre'."""
-    return "template_estruturado" if is_template(text) else "texto_livre"
-
-
-# ─── Análise por tipo de documento ─────────────────────────────────────────────
-
-def analyze_document_type(df: pd.DataFrame, doc_type: str) -> dict:
     """
-    Retorna estatísticas descritivas de um DataFrame de documentos clínicos.
+    Classifica o texto como 'template', 'livre' ou 'vazio'.
 
-    Args:
-        df: DataFrame carregado do CSV
-        doc_type: 'prescricoes' ou 'pareceres'
-
-    Returns:
-        Dicionário com estatísticas para a Tabela 1
+    Critério: presença de marcadores estruturais típicos de formulários
+    clínicos (cabeçalhos com #, checkboxes, campos de sinais vitais).
     """
-    text_col = TEXT_COLUMN[doc_type]
-    date_col = DATE_COLUMN[doc_type]
+    if not isinstance(text, str) or not text.strip():
+        return "vazio"
+    return "template" if _TEMPLATE_RE.search(text) else "livre"
 
-    # Filtrar registros com texto
-    mask = df[text_col].notna() & (df[text_col].str.strip() != "")
-    df_valid = df[mask].copy()
 
-    # Contagens básicas
-    total_records = len(df_valid)
-    unique_patients = df_valid["cd_paciente"].nunique() if "cd_paciente" in df_valid.columns else None
-    unique_hospitals = df_valid["ds_multi_empresa"].nunique() if "ds_multi_empresa" in df_valid.columns else None
+# ──────────────────────────────────────────────────────────────────────────────
+# Classe principal
+# ──────────────────────────────────────────────────────────────────────────────
 
-    # Comprimento dos textos
-    df_valid["_tokens"] = df_valid[text_col].apply(count_tokens_simple)
-    df_valid["_chars"] = df_valid[text_col].str.len()
-    df_valid["_sentences"] = df_valid[text_col].apply(count_sentences_simple)
+class ExploratoryAnalysis:
+    """
+    Orquestra a análise exploratória completa do corpus clínico.
 
-    # Tipo de texto (template vs. livre)
-    df_valid["_text_type"] = df_valid[text_col].apply(classify_text_type)
-    type_counts = df_valid["_text_type"].value_counts().to_dict()
+    Exemplo de uso
+    --------------
+    >>> ea = ExploratoryAnalysis(
+    ...     path_prescricoes="data/raw/prescricoes.csv",
+    ...     path_pareceres="data/raw/pareceres.csv",
+    ... )
+    >>> stats = ea.run()
+    """
 
-    # Especialidades
-    top_specialties = {}
-    if "ds_especialid_atendimento" in df_valid.columns:
-        top_specialties = (
-            df_valid["ds_especialid_atendimento"]
+    def __init__(
+        self,
+        path_prescricoes: str | Path,
+        path_pareceres:   str | Path,
+        output_dir:       str | Path = "outputs/exploratory_analysis",
+    ):
+        self.path_prescricoes = Path(path_prescricoes)
+        self.path_pareceres   = Path(path_pareceres)
+        self.output_dir       = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        self.df_presc:  pd.DataFrame | None = None
+        self.df_par:    pd.DataFrame | None = None
+        self._combined: pd.DataFrame | None = None
+        self.stats: dict = {}
+
+    # ── 0.1 ──────────────────────────────────────────────────────────────────
+
+    def load(self) -> None:
+        """0.1) Lê e valida os dois CSVs."""
+        print("0.1) Carregando CSVs...")
+        self.df_presc = load_csv(self.path_prescricoes, COLUMNS_PRESCRICOES)
+        self.df_par   = load_csv(self.path_pareceres,   COLUMNS_PARECERES)
+        print(f"     Prescrições : {len(self.df_presc):>10,} registros")
+        print(f"     Pareceres   : {len(self.df_par):>10,} registros")
+
+    # ── 0.2 ──────────────────────────────────────────────────────────────────
+
+    def descriptive_stats(self) -> dict:
+        """0.2) Estatísticas descritivas do corpus."""
+        print("0.2) Calculando estatísticas descritivas...")
+
+        self._combined = pd.concat(
+            [
+                self.df_presc.assign(doc_type="prescricao"),
+                self.df_par.assign(doc_type="parecer"),
+            ],
+            ignore_index=True,
+        )
+
+        # 0.2.1 — contagem por tipo
+        counts = self._combined["doc_type"].value_counts().to_dict()
+
+        # 0.2.2 — pacientes únicos
+        unique_patients = int(self._combined["cd_paciente"].nunique())
+
+        # 0.2.3 — período coberto
+        dt_min = self._combined["dt_atendimento"].min()
+        dt_max = self._combined["dt_atendimento"].max()
+
+        # 0.2.4 — top 10 especialidades
+        top_esp = (
+            self._combined["ds_especialid_atendimento"]
+            .str.strip()
             .value_counts()
-            .head(5)
+            .head(10)
             .to_dict()
         )
 
-    # Período de cobertura
-    periodo = {}
-    if date_col in df_valid.columns:
-        try:
-            dates = pd.to_datetime(df_valid[date_col], dayfirst=True, errors="coerce")
-            periodo = {
-                "inicio": dates.min().strftime("%d/%m/%Y") if dates.notna().any() else "N/A",
-                "fim": dates.max().strftime("%d/%m/%Y") if dates.notna().any() else "N/A",
+        # 0.2.5 — hospitais únicos
+        n_hospitais = int(
+            self._combined["ds_multi_empresa"]
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .nunique()
+        )
+
+        stats = {
+            "total_registros":    len(self._combined),
+            "total_prescricoes":  counts.get("prescricao", 0),
+            "total_pareceres":    counts.get("parecer", 0),
+            "pacientes_unicos":   unique_patients,
+            "periodo_inicio":     dt_min.strftime("%d/%m/%Y") if pd.notna(dt_min) else "N/A",
+            "periodo_fim":        dt_max.strftime("%d/%m/%Y") if pd.notna(dt_max) else "N/A",
+            "top_especialidades": top_esp,
+            "total_hospitais":    n_hospitais,
+        }
+        self.stats.update(stats)
+        return stats
+
+    # ── 0.3 ──────────────────────────────────────────────────────────────────
+
+    def token_distribution(self) -> dict:
+        """0.3) Distribuição de tokens, caracteres e sentenças por tipo de doc."""
+        print("0.3) Calculando distribuição de tokens...")
+
+        results = {}
+        for doc_type, df, text_col in [
+            ("prescricao", self.df_presc, "ds_evolucao"),
+            ("parecer",    self.df_par,   "ds_parecer"),
+        ]:
+            tokens = df[text_col].apply(count_tokens)
+            chars  = df[text_col].apply(count_chars)
+            sents  = df[text_col].apply(count_sentences)
+
+            def _summary(s: pd.Series) -> dict:
+                return {
+                    "min":    int(s.min()),
+                    "p25":    round(float(s.quantile(0.25)), 1),
+                    "median": round(float(s.median()), 1),
+                    "mean":   round(float(s.mean()), 1),
+                    "p75":    round(float(s.quantile(0.75)), 1),
+                    "max":    int(s.max()),
+                }
+
+            results[doc_type] = {
+                "tokens":    _summary(tokens),
+                "chars":     _summary(chars),
+                "sentences": _summary(sents),
             }
-        except Exception:
-            periodo = {"inicio": "N/A", "fim": "N/A"}
 
-    return {
-        "tipo_documento": doc_type,
-        "total_registros": total_records,
-        "pacientes_unicos": unique_patients,
-        "hospitais_unicos": unique_hospitals,
-        "periodo": periodo,
-        "tokens": {
-            "minimo": int(df_valid["_tokens"].min()),
-            "mediana": int(df_valid["_tokens"].median()),
-            "media": round(df_valid["_tokens"].mean(), 1),
-            "maximo": int(df_valid["_tokens"].max()),
-            "p25": int(df_valid["_tokens"].quantile(0.25)),
-            "p75": int(df_valid["_tokens"].quantile(0.75)),
-        },
-        "caracteres": {
-            "minimo": int(df_valid["_chars"].min()),
-            "mediana": int(df_valid["_chars"].median()),
-            "media": round(df_valid["_chars"].mean(), 1),
-            "maximo": int(df_valid["_chars"].max()),
-        },
-        "sentencas": {
-            "mediana": int(df_valid["_sentences"].median()),
-            "media": round(df_valid["_sentences"].mean(), 1),
-        },
-        "tipo_texto": {
-            "texto_livre": type_counts.get("texto_livre", 0),
-            "template_estruturado": type_counts.get("template_estruturado", 0),
-            "pct_template": round(
-                type_counts.get("template_estruturado", 0) / total_records * 100, 1
-            ) if total_records > 0 else 0,
-        },
-        "top5_especialidades": top_specialties,
-        "registros_sem_texto": len(df) - total_records,
-    }
+            # Guarda as séries para uso nos gráficos
+            df["_n_tokens"]    = tokens
+            df["_n_chars"]     = chars
+            df["_n_sentences"] = sents
+
+        self.stats["token_distribution"] = results
+        return results
+
+    # ── 0.4 ──────────────────────────────────────────────────────────────────
+
+    def classify_text_types(self) -> dict:
+        """0.4) Classifica cada documento como texto livre, template ou vazio."""
+        print("0.4) Classificando tipos de texto...")
+
+        results = {}
+        for doc_type, df, text_col in [
+            ("prescricao", self.df_presc, "ds_evolucao"),
+            ("parecer",    self.df_par,   "ds_parecer"),
+        ]:
+            df["_text_type"] = df[text_col].apply(classify_text_type)
+            counts = df["_text_type"].value_counts()
+            total  = len(df)
+            results[doc_type] = {
+                t: {"count": int(n), "pct": round(100 * n / total, 1)}
+                for t, n in counts.items()
+            }
+
+        self.stats["text_types"] = results
+        return results
+
+    # ── 0.5 ──────────────────────────────────────────────────────────────────
+
+    def generate_outputs(self) -> None:
+        """0.5) Gera todos os arquivos de saída."""
+        print("0.5) Gerando saídas...")
+        self._save_tabela1()
+        self._plot_token_histogram()
+        self._plot_top_especialidades()
+        self._save_json()
+        print(f"     Tudo salvo em: {self.output_dir.resolve()}")
+
+    def _save_tabela1(self) -> None:
+        """0.5.1) Tabela 1 da dissertação — CSV + Excel."""
+        td = self.stats.get("token_distribution", {})
+        tt = self.stats.get("text_types", {})
+
+        rows = []
+        for doc_type, label in [("prescricao", "Prescrições"), ("parecer", "Pareceres")]:
+            t = td.get(doc_type, {})
+            rows.append({
+                "Tipo de documento":      label,
+                "Total de registros":     self.stats.get(f"total_{doc_type}s", 0),
+                "Tokens — mín":           t.get("tokens", {}).get("min", "-"),
+                "Tokens — mediana":       t.get("tokens", {}).get("median", "-"),
+                "Tokens — média":         t.get("tokens", {}).get("mean", "-"),
+                "Tokens — máx":           t.get("tokens", {}).get("max", "-"),
+                "Sentenças — mediana":    t.get("sentences", {}).get("median", "-"),
+                "Texto livre (%)":        tt.get(doc_type, {}).get("livre",    {}).get("pct", 0),
+                "Template (%)":           tt.get(doc_type, {}).get("template", {}).get("pct", 0),
+                "Vazio (%)":              tt.get(doc_type, {}).get("vazio",    {}).get("pct", 0),
+            })
+
+        df_tab = pd.DataFrame(rows)
+        df_tab.to_csv(  self.output_dir / "tabela1.csv",  index=False, encoding="utf-8-sig")
+        df_tab.to_excel(self.output_dir / "tabela1.xlsx", index=False)
+        print("     tabela1.csv + tabela1.xlsx")
+
+    def _plot_token_histogram(self) -> None:
+        """0.5.2) Histograma de distribuição de tokens."""
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+        for ax, (df, label) in zip(
+            axes,
+            [(self.df_presc, "Prescrições"), (self.df_par, "Pareceres")],
+        ):
+            sns.histplot(df["_n_tokens"], bins=30, kde=True, ax=ax, color="#4C72B0")
+            ax.set_title(f"Distribuição de Tokens — {label}")
+            ax.set_xlabel("Número de tokens")
+            ax.set_ylabel("Frequência")
+            ax.xaxis.set_major_formatter(
+                mticker.FuncFormatter(lambda x, _: f"{int(x):,}")
+            )
+        plt.tight_layout()
+        fig.savefig(self.output_dir / "histograma_tokens.png", dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print("     histograma_tokens.png")
+
+    def _plot_top_especialidades(self) -> None:
+        """0.5.3) Gráfico de barras horizontais — top especialidades."""
+        top = self.stats.get("top_especialidades", {})
+        if not top:
+            return
+
+        labels = list(top.keys())
+        values = list(top.values())
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.barh(labels[::-1], values[::-1], color="#55A868")
+        ax.set_xlabel("Número de registros")
+        ax.set_title("Top Especialidades Médicas")
+        ax.xaxis.set_major_formatter(
+            mticker.FuncFormatter(lambda x, _: f"{int(x):,}")
+        )
+        plt.tight_layout()
+        fig.savefig(self.output_dir / "top_especialidades.png", dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print("     top_especialidades.png")
+
+    def _save_json(self) -> None:
+        """0.5.4) Exporta todas as estatísticas em JSON."""
+        with open(self.output_dir / "stats.json", "w", encoding="utf-8") as f:
+            json.dump(self.stats, f, ensure_ascii=False, indent=2, default=str)
+        print("     stats.json")
+
+    # ── Ponto de entrada ──────────────────────────────────────────────────────
+
+    def run(self) -> dict:
+        """Executa o pipeline completo da Etapa 0 e retorna as estatísticas."""
+        self.load()
+        self.descriptive_stats()
+        self.token_distribution()
+        self.classify_text_types()
+        self.generate_outputs()
+        print("\n✓ Etapa 0 concluída.")
+        return self.stats
 
 
-def gerar_tabela1(stats_dict: dict, output_dir: Path) -> pd.DataFrame:
-    """
-    Gera a Tabela 1 do anteprojeto em formato DataFrame e exporta para CSV/Excel.
-    """
-    rows = []
-    for doc_type, s in stats_dict.items():
-        rows.append({
-            "Tipo de Documento": "Prescrições" if doc_type == "prescricoes" else "Pareceres",
-            "Total de Registros": f"{s['total_registros']:,}",
-            "Pacientes Únicos": f"{s['pacientes_unicos']:,}" if s["pacientes_unicos"] else "N/D",
-            "Hospitais": f"{s['hospitais_unicos']}" if s["hospitais_unicos"] else "N/D",
-            "Período (início)": s["periodo"].get("inicio", "N/D"),
-            "Período (fim)": s["periodo"].get("fim", "N/D"),
-            "Tokens — Mediana (IQR)": f"{s['tokens']['mediana']} ({s['tokens']['p25']}–{s['tokens']['p75']})",
-            "Tokens — Mínimo": s["tokens"]["minimo"],
-            "Tokens — Máximo": s["tokens"]["maximo"],
-            "Caracteres — Mediana": s["caracteres"]["mediana"],
-            "Sentenças — Mediana": s["sentencas"]["mediana"],
-            "Texto livre (n)": s["tipo_texto"]["texto_livre"],
-            "Template estruturado (n)": s["tipo_texto"]["template_estruturado"],
-            "% Template": f"{s['tipo_texto']['pct_template']}%",
-            "Registros sem texto": s["registros_sem_texto"],
-        })
-
-    df_tabela1 = pd.DataFrame(rows).T
-    df_tabela1.columns = df_tabela1.iloc[0]
-    df_tabela1 = df_tabela1.iloc[1:]
-
-    # Salvar
-    output_dir.mkdir(parents=True, exist_ok=True)
-    df_tabela1.to_csv(output_dir / "tabela1_caracterizacao.csv", encoding="utf-8")
-    df_tabela1.to_excel(output_dir / "tabela1_caracterizacao.xlsx")
-
-    print("\n" + "=" * 60)
-    print("TABELA 1 — Caracterização Exploratória das Amostras")
-    print("=" * 60)
-    print(df_tabela1.to_string())
-
-    return df_tabela1
-
-
-def gerar_graficos(stats_dict: dict, dfs: dict, output_dir: Path):
-    """Gera gráficos de distribuição para análise exploratória."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    sns.set_theme(style="whitegrid", palette="muted")
-
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle("Caracterização Exploratória do Dataset Clínico", fontsize=14, fontweight="bold")
-
-    colors = {"prescricoes": "#2196F3", "pareceres": "#FF9800"}
-    labels = {"prescricoes": "Prescrições", "pareceres": "Pareceres"}
-
-    for idx, (doc_type, df) in enumerate(dfs.items()):
-        text_col = TEXT_COLUMN[doc_type]
-        df_valid = df[df[text_col].notna() & (df[text_col].str.strip() != "")].copy()
-        df_valid["_tokens"] = df_valid[text_col].apply(count_tokens_simple)
-        color = colors[doc_type]
-
-        # Gráfico 1: distribuição de tokens (histograma)
-        ax = axes[0][idx]
-        tokens_clip = df_valid["_tokens"].clip(upper=df_valid["_tokens"].quantile(0.95))
-        ax.hist(tokens_clip, bins=50, color=color, edgecolor="white", alpha=0.8)
-        med = df_valid["_tokens"].median()
-        ax.axvline(med, color="red", linestyle="--", linewidth=1.5, label=f"Mediana: {int(med)}")
-        ax.set_title(f"{labels[doc_type]} — Distribuição de Tokens")
-        ax.set_xlabel("Número de tokens (até P95)")
-        ax.set_ylabel("Frequência")
-        ax.legend()
-
-        # Gráfico 2: top especialidades
-        ax = axes[1][idx]
-        if "ds_especialid_atendimento" in df_valid.columns:
-            top = df_valid["ds_especialid_atendimento"].value_counts().head(8)
-            top.plot(kind="barh", ax=ax, color=color, edgecolor="white")
-            ax.set_title(f"{labels[doc_type]} — Top Especialidades")
-            ax.set_xlabel("Número de registros")
-            ax.set_ylabel("")
-
-    plt.tight_layout()
-    plt.savefig(output_dir / "figura1_distribuicao_tokens.png", dpi=150, bbox_inches="tight")
-    plt.close()
-    print(f"✓ Gráfico salvo em {output_dir / 'figura1_distribuicao_tokens.png'}")
-
-
-# ─── Entrypoint CLI ─────────────────────────────────────────────────────────────
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Análise exploratória do dataset de textos clínicos"
-    )
-    parser.add_argument("--prescricoes", type=str, required=True, help="Caminho para prescricoes.csv")
-    parser.add_argument("--pareceres", type=str, required=True, help="Caminho para pareceres.csv")
-    parser.add_argument("--output", type=str, default="outputs/exploratory_analysis/", help="Diretório de saída")
-    args = parser.parse_args()
-
-    output_dir = Path(args.output)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = output_dir / timestamp
-    run_dir.mkdir(parents=True, exist_ok=True)
-
-    print("Carregando dados...")
-    dfs = {}
-    stats = {}
-
-    for doc_type, filepath in [("prescricoes", args.prescricoes), ("pareceres", args.pareceres)]:
-        if not os.path.exists(filepath):
-            print(f"⚠️  Arquivo não encontrado: {filepath}")
-            continue
-        print(f"  → Carregando {filepath}...")
-        df = load_csv(filepath)
-        dfs[doc_type] = df
-        print(f"     {len(df):,} registros carregados")
-        stats[doc_type] = analyze_document_type(df, doc_type)
-
-    if not stats:
-        print("Nenhum dado carregado. Verifique os caminhos.")
-        return
-
-    # Gerar Tabela 1
-    gerar_tabela1(stats, run_dir)
-
-    # Gerar gráficos
-    if len(dfs) > 0:
-        gerar_graficos(stats, dfs, run_dir)
-
-    # Salvar estatísticas brutas em JSON
-    with open(run_dir / "stats_completas.json", "w", encoding="utf-8") as f:
-        json.dump(stats, f, ensure_ascii=False, indent=2)
-
-    print(f"\n✅ Análise concluída. Resultados em: {run_dir}")
-
+# ──────────────────────────────────────────────────────────────────────────────
+# CLI
+# ──────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Etapa 0 — Análise exploratória do corpus")
+    parser.add_argument("--prescricoes", required=True, help="Caminho para prescricoes.csv")
+    parser.add_argument("--pareceres",   required=True, help="Caminho para pareceres.csv")
+    parser.add_argument("--output", default="outputs/exploratory_analysis")
+    args = parser.parse_args()
+
+    ea = ExploratoryAnalysis(
+        path_prescricoes=args.prescricoes,
+        path_pareceres=args.pareceres,
+        output_dir=args.output,
+    )
+    stats = ea.run()
+    print(json.dumps(stats, ensure_ascii=False, indent=2, default=str))
