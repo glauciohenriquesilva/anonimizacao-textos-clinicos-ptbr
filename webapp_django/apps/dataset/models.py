@@ -22,7 +22,6 @@ class ClinicalDocument(models.Model):
     ]
 
     # Identificadores
-    cd_atendimento = models.CharField(max_length=50, db_index=True)
     cd_paciente    = models.CharField(max_length=50, blank=True, db_index=True)
     doc_type       = models.CharField(max_length=20, choices=DOC_TYPE_CHOICES)
 
@@ -46,7 +45,7 @@ class ClinicalDocument(models.Model):
     is_anonymized   = models.BooleanField(default=False)
 
     class Meta:
-        db_table = "clinical_document"
+        db_table = "tb_texto_clinico"
         verbose_name = "Documento Clínico"
         verbose_name_plural = "Documentos Clínicos"
         ordering = ["-imported_at"]
@@ -56,7 +55,7 @@ class ClinicalDocument(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.get_doc_type_display()} | {self.cd_atendimento}"
+        return f"{self.get_doc_type_display()} | {self.cd_paciente}"
 
 
 class AnnotatedSentence(models.Model):

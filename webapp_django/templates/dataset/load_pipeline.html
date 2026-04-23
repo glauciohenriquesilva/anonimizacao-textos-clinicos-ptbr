@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Carregar Dataset para Pipeline{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">Carregar Dataset para Pipeline</h4>
+  <a href="{% url 'dataset:list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Voltar
+  </a>
+</div>
+
+<!-- Status atual -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><strong>Arquivos em data/raw/</strong></div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr>
+            <td>prescricoes.csv</td>
+            <td>
+              {% if presc_exists %}
+                <span class="badge bg-success">{{ csv_presc_count }} registros</span>
+              {% else %}
+                <span class="badge bg-danger">não encontrado</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>pareceres.csv</td>
+            <td>
+              {% if par_exists %}
+                <span class="badge bg-success">{{ csv_par_count }} registros</span>
+              {% else %}
+                <span class="badge bg-danger">não encontrado</span>
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><strong>Banco de dados (tb_texto_clinico)</strong></div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr><td>Prescrições</td><td><span class="badge bg-primary">{{ db_presc }}</span></td></tr>
+          <tr><td>Pareceres</td>  <td><span class="badge bg-secondary">{{ db_par }}</span></td></tr>
+          <tr><td><strong>Total</strong></td><td><strong>{{ db_total }}</strong></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Formulário de carregamento -->
+<div class="card">
+  <div class="card-header"><strong>Executar carregamento</strong></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="clear_existing"
+               id="clearCheck" checked>
+        <label class="form-check-label" for="clearCheck">
+          Limpar registros existentes antes de carregar
+          <small class="text-muted">(recomendado para evitar duplicatas)</small>
+        </label>
+      </div>
+      <button type="submit" class="btn btn-success"
+              {% if not presc_exists and not par_exists %}disabled{% endif %}>
+        <i class="bi bi-database-up"></i> Carregar Dataset para Pipeline
+      </button>
+      {% if not presc_exists and not par_exists %}
+        <p class="text-danger mt-2 small">
+          Nenhum CSV encontrado em data/raw/. Use "Importar CSV" primeiro.
+        </p>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

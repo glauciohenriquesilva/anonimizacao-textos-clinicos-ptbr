@@ -13,8 +13,12 @@ Para desenvolvimento local:
 from pathlib import Path
 from decouple import config, Csv
 
+import sys
+
+
 # ─── Paths ────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent.parent   # raiz do projeto
+sys.path.insert(0, str(BASE_DIR))
 
 # ─── Segurança ────────────────────────────────────────────────────────────────
 SECRET_KEY = config("SECRET_KEY", default="django-insecure-CHANGE-ME-IN-PRODUCTION")

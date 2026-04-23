@@ -13,6 +13,9 @@ import json
 import re
 from pathlib import Path
 
+import matplotlib
+matplotlib.use('Agg')   # backend não-interativo — obrigatório fora do main thread
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import pandas as pd
@@ -57,6 +60,9 @@ _TEMPLATE_PATTERNS = [
 ]
 _TEMPLATE_RE = re.compile("|".join(_TEMPLATE_PATTERNS), re.MULTILINE)
 
+# Padrões para detecção de PHI no texto
+_DATE_RE = re.compile(r'\b\d{1,2}/\d{1,2}/\d{2,4}\b')
+_TIME_RE = re.compile(r'\b\d{1,2}:\d{2}\b')
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 0.1) Leitura e validação
@@ -249,7 +255,7 @@ class ExploratoryAnalysis:
     # ── 0.3 ──────────────────────────────────────────────────────────────────
 
     def token_distribution(self) -> dict:
-        """0.3) Distribuição de tokens, caracteres e sentenças por tipo de doc."""
+        """0.3) Distribuição de tokens, caracteres, sentenças e PHI por tipo de doc."""
         print("0.3) Calculando distribuição de tokens...")
 
         results = {}
@@ -275,16 +281,20 @@ class ExploratoryAnalysis:
                 "tokens":    _summary(tokens),
                 "chars":     _summary(chars),
                 "sentences": _summary(sents),
+                "unique_texts":      int(df[text_col].nunique()),
+                "docs_with_newline": int(df[text_col].str.contains(r'\n', regex=False, na=False).sum()),
+                "docs_with_date":    int(df[text_col].apply(lambda t: bool(_DATE_RE.search(t)) if isinstance(t, str) else False).sum()),
+                "docs_with_time":    int(df[text_col].apply(lambda t: bool(_TIME_RE.search(t)) if isinstance(t, str) else False).sum()),
             }
 
-            # Guarda as séries para uso nos gráficos
             df["_n_tokens"]    = tokens
             df["_n_chars"]     = chars
             df["_n_sentences"] = sents
 
+        # fora do for — processa ambos os tipos antes de retornar
         self.stats["token_distribution"] = results
         return results
-
+    
     # ── 0.4 ──────────────────────────────────────────────────────────────────
 
     def classify_text_types(self) -> dict:
@@ -319,31 +329,42 @@ class ExploratoryAnalysis:
         print(f"     Tudo salvo em: {self.output_dir.resolve()}")
 
     def _save_tabela1(self) -> None:
-        """0.5.1) Tabela 1 da dissertação — CSV + Excel."""
+        """0.5.1) Tabela 1 do anteprojeto — CSV + Excel."""
         td = self.stats.get("token_distribution", {})
-        tt = self.stats.get("text_types", {})
 
         rows = []
-        for doc_type, label in [("prescricao", "Prescrições"), ("parecer", "Pareceres")]:
+        for doc_type, label, n in [
+            ("prescricao", f"Prescrições (n={self.stats['total_prescricoes']})", self.stats["total_prescricoes"]),
+            ("parecer",    f"Pareceres (n={self.stats['total_pareceres']})",     self.stats["total_pareceres"]),
+        ]:
             t = td.get(doc_type, {})
             rows.append({
-                "Tipo de documento":      label,
-                "Total de registros":     self.stats.get(f"total_{doc_type}s", 0),
-                "Tokens — mín":           t.get("tokens", {}).get("min", "-"),
-                "Tokens — mediana":       t.get("tokens", {}).get("median", "-"),
-                "Tokens — média":         t.get("tokens", {}).get("mean", "-"),
-                "Tokens — máx":           t.get("tokens", {}).get("max", "-"),
-                "Sentenças — mediana":    t.get("sentences", {}).get("median", "-"),
-                "Texto livre (%)":        tt.get(doc_type, {}).get("livre",    {}).get("pct", 0),
-                "Template (%)":           tt.get(doc_type, {}).get("template", {}).get("pct", 0),
-                "Vazio (%)":              tt.get(doc_type, {}).get("vazio",    {}).get("pct", 0),
+                "Característica":                      "—",   # preenchida abaixo
+                label:                                 "—",
             })
 
-        df_tab = pd.DataFrame(rows)
+        # Constrói no formato linha × coluna (cada linha é uma característica)
+        presc = td.get("prescricao", {})
+        par   = td.get("parecer",    {})
+        col_p = f"Prescrições (n={self.stats['total_prescricoes']})"
+        col_r = f"Pareceres (n={self.stats['total_pareceres']})"
+
+        tabela = [
+            ("Textos distintos (sem duplicatas)",  presc.get("unique_texts", "-"),       par.get("unique_texts", "-")),
+            ("Mediana da quantidade de caracteres", presc["chars"]["median"],             par["chars"]["median"]),
+            ("Média da quantidade de caracteres",   presc["chars"]["mean"],               par["chars"]["mean"]),
+            ("Quantidade máxima de caracteres",     presc["chars"]["max"],                par["chars"]["max"]),
+            ("Mediana da quantidade de palavras",   presc["tokens"]["median"],            par["tokens"]["median"]),
+            ("Documentos com quebra de linha",      presc.get("docs_with_newline", "-"),  par.get("docs_with_newline", "-")),
+            ("Ocorrência de datas no texto",        presc.get("docs_with_date", "-"),     par.get("docs_with_date", "-")),
+            ("Ocorrência de hora no texto",         presc.get("docs_with_time", "-"),     par.get("docs_with_time", "-")),
+        ]
+
+        df_tab = pd.DataFrame(tabela, columns=["Característica", col_p, col_r])
         df_tab.to_csv(  self.output_dir / "tabela1.csv",  index=False, encoding="utf-8-sig")
         df_tab.to_excel(self.output_dir / "tabela1.xlsx", index=False)
         print("     tabela1.csv + tabela1.xlsx")
-
+        
     def _plot_token_histogram(self) -> None:
         """0.5.2) Histograma de distribuição de tokens."""
         fig, axes = plt.subplots(1, 2, figsize=(12, 4))

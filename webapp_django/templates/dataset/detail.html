@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Documento #{{ doc.pk }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">Documento #{{ doc.pk }}</h4>
+  <a href="{% url 'dataset:list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Voltar
+  </a>
+</div>
+
+<!-- Metadados -->
+<div class="card mb-4">
+  <div class="card-header"><strong>Metadados</strong></div>
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-md-3">
+        <small class="text-muted">Tipo</small>
+        <p class="mb-0">
+          {% if doc.doc_type == "prescricao" %}
+            <span class="badge bg-primary">Prescrição</span>
+          {% else %}
+            <span class="badge bg-secondary">Parecer</span>
+          {% endif %}
+        </p>
+      </div>
+      <div class="col-md-3">
+        <small class="text-muted">Paciente</small>
+        <p class="mb-0"><code>{{ doc.cd_paciente }}</code></p>
+      </div>
+      <div class="col-md-3">
+        <small class="text-muted">Data do atendimento</small>
+        <p class="mb-0">{{ doc.doc_date|date:"d/m/Y"|default:"—" }}</p>
+      </div>
+      <div class="col-md-3">
+        <small class="text-muted">Formato</small>
+        <p class="mb-0">
+          {% if doc.text_type == "template_estruturado" %}
+            <span class="badge bg-warning text-dark">Template</span>
+          {% elif doc.text_type == "texto_livre" %}
+            <span class="badge bg-success">Texto livre</span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </p>
+      </div>
+      <div class="col-md-6">
+        <small class="text-muted">Hospital</small>
+        <p class="mb-0">{{ doc.hospital|default:"—" }}</p>
+      </div>
+      <div class="col-md-3">
+        <small class="text-muted">Especialidade</small>
+        <p class="mb-0">{{ doc.specialty|default:"—" }}</p>
+      </div>
+      <div class="col-md-3">
+        <small class="text-muted">Tokens / Chars / Sentenças</small>
+        <p class="mb-0">{{ doc.token_count }} / {{ doc.char_count }} / {{ doc.sentence_count }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status do pipeline -->
+<div class="card mb-4">
+  <div class="card-header"><strong>Status no Pipeline</strong></div>
+  <div class="card-body">
+    <div class="d-flex gap-4">
+      <div>
+        <i class="bi bi-{% if doc.is_preprocessed %}check-circle-fill text-success{% else %}circle text-muted{% endif %}"></i>
+        Pré-processado
+      </div>
+      <div>
+        <i class="bi bi-{% if doc.is_annotated %}check-circle-fill text-success{% else %}circle text-muted{% endif %}"></i>
+        Anotado
+      </div>
+      <div>
+        <i class="bi bi-{% if doc.is_anonymized %}check-circle-fill text-success{% else %}circle text-muted{% endif %}"></i>
+        Anonimizado
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Texto bruto -->
+<div class="card mb-4">
+  <div class="card-header"><strong>Texto bruto</strong></div>
+  <div class="card-body">
+    <pre class="mb-0" style="white-space: pre-wrap; font-size: 0.875rem;">{{ doc.raw_text }}</pre>
+  </div>
+</div>
+
+<!-- Texto processado (quando disponível) -->
+{% if doc.processed_text %}
+<div class="card">
+  <div class="card-header"><strong>Texto pré-processado</strong></div>
+  <div class="card-body">
+    <pre class="mb-0" style="white-space: pre-wrap; font-size: 0.875rem;">{{ doc.processed_text }}</pre>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

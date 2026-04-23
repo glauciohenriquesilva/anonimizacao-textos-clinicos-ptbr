@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Análise Exploratória{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">Etapa 0 — Análise Exploratória</h4>
+
+<!-- Botão de execução -->
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-primary mb-4">
+    <i class="bi bi-play-fill"></i> Executar Análise
+  </button>
+</form>
+
+{% if error %}
+  <div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+  </div>
+{% endif %}
+
+{% if executed %}
+
+  <!-- Cards de resumo -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <p class="text-muted mb-1">Total de Registros</p>
+          <p class="display-6 fw-bold">{{ stats.total_registros }}</p>
+          <small class="text-muted">
+            {{ stats.total_prescricoes }} prescrições ·
+            {{ stats.total_pareceres }} pareceres
+          </small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <p class="text-muted mb-1">Pacientes Únicos</p>
+          <p class="display-6 fw-bold">{{ stats.pacientes_unicos }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <p class="text-muted mb-1">Período</p>
+          <p class="fs-5 fw-bold">
+            {{ stats.periodo_inicio }}<br>→ {{ stats.periodo_fim }}
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <p class="text-muted mb-1">Hospitais</p>
+          <p class="display-6 fw-bold">{{ stats.total_hospitais }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela 1 -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <strong>Tabela 1 — Caracterização do Corpus</strong>
+    </div>
+    <div class="card-body table-responsive p-0">
+
+
+        <table class="table table-bordered table-sm mb-0">
+        <thead class="table-light">
+            <tr>
+            <th>Característica</th>
+            <th>Prescrições (n={{ stats.total_prescricoes }})</th>
+            <th>Pareceres (n={{ stats.total_pareceres }})</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+            <td>Textos distintos (sem duplicatas)</td>
+            <td>{{ stats.token_distribution.prescricao.unique_texts }}</td>
+            <td>{{ stats.token_distribution.parecer.unique_texts }}</td>
+            </tr>
+            <tr>
+            <td>Mediana da quantidade de caracteres</td>
+            <td>{{ stats.token_distribution.prescricao.chars.median }}</td>
+            <td>{{ stats.token_distribution.parecer.chars.median }}</td>
+            </tr>
+            <tr>
+            <td>Média da quantidade de caracteres</td>
+            <td>{{ stats.token_distribution.prescricao.chars.mean }}</td>
+            <td>{{ stats.token_distribution.parecer.chars.mean }}</td>
+            </tr>
+            <tr>
+            <td>Quantidade máxima de caracteres</td>
+            <td>{{ stats.token_distribution.prescricao.chars.max }}</td>
+            <td>{{ stats.token_distribution.parecer.chars.max }}</td>
+            </tr>
+            <tr>
+            <td>Mediana da quantidade de palavras</td>
+            <td>{{ stats.token_distribution.prescricao.tokens.median }}</td>
+            <td>{{ stats.token_distribution.parecer.tokens.median }}</td>
+            </tr>
+            <tr>
+            <td>Documentos com quebra de linha</td>
+            <td>{{ stats.token_distribution.prescricao.docs_with_newline }}</td>
+            <td>{{ stats.token_distribution.parecer.docs_with_newline }}</td>
+            </tr>
+            <tr>
+            <td>Ocorrência de datas no texto</td>
+            <td>{{ stats.token_distribution.prescricao.docs_with_date }}</td>
+            <td>{{ stats.token_distribution.parecer.docs_with_date }}</td>
+            </tr>
+            <tr>
+            <td>Ocorrência de hora no texto</td>
+            <td>{{ stats.token_distribution.prescricao.docs_with_time }}</td>
+            <td>{{ stats.token_distribution.parecer.docs_with_time }}</td>
+            </tr>
+        </tbody>
+        </table>
+
+    </div>
+  </div>
+
+  <!-- Gráficos de distribuição de tokens -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header">Distribuição de Tokens — Prescrições</div>
+        <div class="card-body">
+          <canvas id="chartTokensPresc"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header">Distribuição de Tokens — Pareceres</div>
+        <div class="card-body">
+          <canvas id="chartTokensPar"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfico top especialidades -->
+  <div class="card mb-4">
+    <div class="card-header">Top Especialidades Médicas</div>
+    <div class="card-body">
+      <canvas id="chartEsp" style="max-height: 380px;"></canvas>
+    </div>
+  </div>
+
+  <!-- Dados JSON para o JavaScript (lidos no bloco extra_js) -->
+  <script id="data-tokens-presc" type="application/json">{{ chart_tokens_presc|safe }}</script>
+  <script id="data-tokens-par"   type="application/json">{{ chart_tokens_par|safe }}</script>
+  <script id="data-esp"          type="application/json">{{ chart_especialidades|safe }}</script>
+
+{% endif %}
+{% endblock %}
+
+
+{% block extra_js %}
+{% if executed %}
+<script>
+  const tokensPresc = JSON.parse(
+    document.getElementById("data-tokens-presc").textContent
+  );
+  const tokensPar = JSON.parse(
+    document.getElementById("data-tokens-par").textContent
+  );
+  const esp = JSON.parse(
+    document.getElementById("data-esp").textContent
+  );
+
+  new Chart(document.getElementById("chartTokensPresc"), {
+    type: "bar",
+    data: {
+      labels: tokensPresc.labels,
+      datasets: [{
+        label: "Frequência",
+        data: tokensPresc.values,
+        backgroundColor: "#4C72B0",
+        borderRadius: 4
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: "Tokens (centro do intervalo)" } },
+        y: { title: { display: true, text: "Frequência" } }
+      }
+    }
+  });
+
+  new Chart(document.getElementById("chartTokensPar"), {
+    type: "bar",
+    data: {
+      labels: tokensPar.labels,
+      datasets: [{
+        label: "Frequência",
+        data: tokensPar.values,
+        backgroundColor: "#4C72B0",
+        borderRadius: 4
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: "Tokens (centro do intervalo)" } },
+        y: { title: { display: true, text: "Frequência" } }
+      }
+    }
+  });
+
+  new Chart(document.getElementById("chartEsp"), {
+    type: "bar",
+    data: {
+      labels: esp.labels,
+      datasets: [{
+        label: "Registros",
+        data: esp.values,
+        backgroundColor: "#55A868",
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: "Número de registros" } }
+      }
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}

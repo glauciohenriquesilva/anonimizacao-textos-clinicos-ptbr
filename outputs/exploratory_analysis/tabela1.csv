@@ -1,0 +1,9 @@
+﻿Característica,Prescrições (n=1000),Pareceres (n=1000)
+Textos distintos (sem duplicatas),987.0,894.0
+Mediana da quantidade de caracteres,1033.5,232.5
+Média da quantidade de caracteres,1916.4,483.3
+Quantidade máxima de caracteres,24572.0,4000.0
+Mediana da quantidade de palavras,159.0,35.0
+Documentos com quebra de linha,0.0,0.0
+Ocorrência de datas no texto,468.0,164.0
+Ocorrência de hora no texto,42.0,7.0
