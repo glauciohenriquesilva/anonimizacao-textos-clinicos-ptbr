@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Utilidade / ΔF1{% endblock %}
+{% block nav_anon_parent %}active-parent{% endblock %}
+{% block nav_anon_open %}true{% endblock %}
+{% block nav_anon_show %}show{% endblock %}
+{% block nav_anon_utilidade %}active{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3"><ol class="breadcrumb small">
+  <li class="breadcrumb-item text-muted">3) Anonimização</li>
+  <li class="breadcrumb-item active">3.3 Utilidade / ΔF1 — Dimensão I</li>
+</ol></nav>
+<h4 class="mb-1"><i class="bi bi-activity me-2 text-primary"></i>Preservação de Utilidade Clínica</h4>
+<p class="text-muted small mb-4">Dimensão I do TILD: ΔF1 = F1_anonimizado − F1_original por entidade clínica (MEDICAMENTO, DOSE, DIAGNÓSTICO…)</p>
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>
+  Método: treinar BioBERTpt-clin no corpus <strong>original</strong>, avaliar no corpus <strong>anonimizado</strong> e calcular a diferença de F1.
+  Valores próximos de 0 indicam preservação da utilidade; valores negativos indicam perda de informação clínica.
+</div>
+{% if delta_results %}
+<div class="table-responsive mt-3">
+  <table class="table table-hover">
+    <thead class="table-light"><tr><th>Modelo Anon.</th><th>F1 Original</th><th>F1 Anonimizado</th><th>ΔF1</th></tr></thead>
+    <tbody>
+      {% for r in delta_results %}
+      <tr>
+        <td><code class="small">{{ r.modelo }}</code></td>
+        <td>{{ r.f1_original|floatformat:4 }}</td>
+        <td>{{ r.f1_anonymized|floatformat:4 }}</td>
+        <td><strong class="{% if r.delta_f1 >= -0.01 %}text-success{% else %}text-danger{% endif %}">
+          {{ r.delta_f1|floatformat:4 }}
+        </strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+<div class="card border-0 bg-light mt-3">
+  <div class="card-body small text-muted">
+    <i class="bi bi-code-slash me-1"></i>
+    Código-fonte: <code>src/evaluation/metrics.py → AnonymizationMetrics.compute_delta_f1()</code> ·
+    Referência: Schiezaro et al. (2026) — framework TILD
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Classificação de Texto{% endblock %}
+{% block nav_analise_parent %}active-parent{% endblock %}
+{% block nav_analise_open %}true{% endblock %}
+{% block nav_analise_show %}show{% endblock %}
+{% block nav_analise_classificacao %}active{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3"><ol class="breadcrumb small">
+  <li class="breadcrumb-item text-muted">0) Análise Exploratória</li>
+  <li class="breadcrumb-item active">0.4 Classificação do Tipo de Texto</li>
+</ol></nav>
+<h4 class="mb-1"><i class="bi bi-bar-chart-steps me-2 text-primary"></i>Classificação do Tipo de Texto</h4>
+<p class="text-muted small mb-4">Detecção automática: texto livre clínico vs. template estruturado com checkboxes.</p>
+
+{% if not analise_executada %}
+<div class="alert alert-warning d-flex align-items-start gap-2">
+  <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+  <div>
+    <strong>Análise não executada.</strong> Execute a análise exploratória para calcular a proporção texto livre / template.<br>
+    <span class="small text-muted">
+      Marcadores de detecção usados: <code>( X )</code>, <code>[ X ]</code>, <code>SINAIS VITAIS:</code> · Etapas 0.4.1 e 0.4.2
+    </span>
+  </div>
+</div>
+{% else %}
+{% if classificacao %}
+<div class="row g-3 mb-3">
+  {% for doc_type, c in classificacao.items %}
+  <div class="col-md-6"><div class="card">
+    <div class="card-header fw-semibold">
+      <i class="bi bi-file-text me-2"></i>
+      {% if doc_type == "prescricoes" %}Prescrições{% elif doc_type == "pareceres" %}Pareceres{% else %}{{ doc_type|title }}{% endif %}
+    </div>
+    <div class="card-body">
+      <!-- Texto Livre -->
+      <div class="d-flex justify-content-between mb-1 small">
+        <span><i class="bi bi-pencil-square me-1 text-success"></i>Texto Livre</span>
+        <strong>{{ c.livre_pct|floatformat:1 }}%
+          {% if c.n_livre %}<span class="text-muted fw-normal">({{ c.n_livre }})</span>{% endif %}
+        </strong>
+      </div>
+      <div class="progress mb-3" style="height:10px">
+        <div class="progress-bar bg-success" style="width:{{ c.livre_pct }}%" title="{{ c.livre_pct|floatformat:1 }}%"></div>
+      </div>
+      <!-- Template Estruturado -->
+      <div class="d-flex justify-content-between mb-1 small">
+        <span><i class="bi bi-list-check me-1 text-warning"></i>Template Estruturado</span>
+        <strong>{{ c.template_pct|floatformat:1 }}%
+          {% if c.n_template %}<span class="text-muted fw-normal">({{ c.n_template }})</span>{% endif %}
+        </strong>
+      </div>
+      <div class="progress" style="height:10px">
+        <div class="progress-bar bg-warning" style="width:{{ c.template_pct }}%" title="{{ c.template_pct|floatformat:1 }}%"></div>
+      </div>
+    </div>
+  </div></div>
+  {% endfor %}
+</div>
+<div class="alert alert-light border small text-muted">
+  <i class="bi bi-lightbulb me-1"></i>
+  Documentos do tipo <strong>template</strong> contêm checkboxes (<code>( X )</code>, <code>[ X ]</code>) ou cabeçalhos estruturados (<code>SINAIS VITAIS:</code>) e requerem estratégia de anonimização diferenciada.
+</div>
+{% else %}
+<div class="alert alert-secondary small">
+  <i class="bi bi-info-circle me-1"></i>
+  Dados de classificação não encontrados no <code>stats.json</code>. Verifique se o campo <code>text_types</code> foi gerado.
+</div>
+{% endif %}
+{% endif %}
+
+<div class="card border-0 bg-light mt-3">
+  <div class="card-body small text-muted">
+    <i class="bi bi-code-slash me-1"></i>
+    Código-fonte: <code>src/analysis/exploratory.py</code> ·
+    Método: <code>classify_text_type(text)</code>
+  </div>
+</div>
+{% endblock %}

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 # ─── Entidades ────────────────────────────────────────────────────────────────
 
+# Início - 2) NER - 2.3) Treinamento - Definição do esquema de rótulos BIO (IOB2)
 # Entidades de anonimização (PHI)
 PHI_ENTITIES: list[str] = [
     "PESSOA",
@@ -81,6 +82,7 @@ PHI_ID2LABEL: dict[int, str] = {i: label for label, i in PHI_LABEL2ID.items()}
 
 NUM_LABELS: int = len(ALL_LABELS)
 NUM_PHI_LABELS: int = len(PHI_LABELS)
+# Fim - 2) NER - 2.3) Treinamento - Definição do esquema de rótulos BIO (IOB2)
 
 
 # ─── Utilitários ─────────────────────────────────────────────────────────────
@@ -110,6 +112,7 @@ def is_valid_bio_sequence(labels: list[str]) -> bool:
     return True
 
 
+# Início - 3) Anonimização - 3.1) Substituição por Marcadores - Conversão de sequência BIO em spans
 def bio_to_spans(
     tokens: list[str], labels: list[str]
 ) -> list[tuple[str, str, int, int]]:
@@ -159,3 +162,4 @@ def bio_to_spans(
         ))
 
     return spans
+# Fim - 3) Anonimização - 3.1) Substituição por Marcadores - Conversão de sequência BIO em spans

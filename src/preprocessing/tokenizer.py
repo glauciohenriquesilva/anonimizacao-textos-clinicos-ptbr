@@ -21,6 +21,7 @@ from typing import Optional, Union
 
 # ─── Estruturas de dados ──────────────────────────────────────────────────────
 
+# Início - 1) Pré-processamento - 1.4) Tokenização - 1.4.2) Extração de features por token (metadados clínicos)
 @dataclass
 class Token:
     """Representa um token com metadados clínicos."""
@@ -34,6 +35,7 @@ class Token:
 
     def __repr__(self) -> str:
         return f"Token({self.text!r}, {self.label})"
+# Fim - 1) Pré-processamento - 1.4) Tokenização - 1.4.2) Extração de features por token (metadados clínicos)
 
 
 @dataclass
@@ -52,10 +54,12 @@ class TokenizedSentence:
     def labels(self) -> list[str]:
         return [t.label for t in self.tokens]
 
+    # Início - 1) Pré-processamento - 1.5) Exportação - 1.5.1) Exportação no formato CoNLL-2003
     def to_conll(self) -> str:
         """Exporta no formato CoNLL-2003 (token \\t label por linha)."""
         lines = [f"{t.text}\t{t.label}" for t in self.tokens]
         return "\n".join(lines)
+    # Fim - 1) Pré-processamento - 1.5) Exportação - 1.5.1) Exportação no formato CoNLL-2003
 
 
 # ─── Regex para tokenização clínica ──────────────────────────────────────────
@@ -90,6 +94,7 @@ class WordTokenizer:
             from .abbreviations import ABBREV_DICT
             self._abbrev_dict = ABBREV_DICT
 
+    # Início - 1) Pré-processamento - 1.4) Tokenização - 1.4.1) Tokenização por palavras (regex clínico)
     def tokenize(self, sentence: str) -> TokenizedSentence:
         """
         Tokeniza uma sentença clínica.
@@ -120,11 +125,13 @@ class WordTokenizer:
             tokens.append(token)
 
         return TokenizedSentence(original_text=sentence, tokens=tokens)
+    # Fim - 1) Pré-processamento - 1.4) Tokenização - 1.4.1) Tokenização por palavras (regex clínico)
 
     def tokenize_batch(self, sentences: list[str]) -> list[TokenizedSentence]:
         return [self.tokenize(s) for s in sentences]
 
 
+# Início - 1) Pré-processamento - 1.4) Tokenização - 1.4.3) Tokenização subword (WordPiece / BERT)
 class SubwordTokenizer:
     """
     Tokenizador subword via HuggingFace para modelos BERT.
@@ -230,3 +237,4 @@ class SubwordTokenizer:
             labels = sentence_labels[i] if sentence_labels else None
             results.append(self.tokenize(words, labels))
         return results
+# Fim - 1) Pré-processamento - 1.4) Tokenização - 1.4.3) Tokenização subword (WordPiece / BERT)

@@ -85,20 +85,27 @@ class TextNormalizer:
 
     # ── Métodos de limpeza ──────────────────────────────────────────────────
 
+    # Início - 1) Pré-processamento - 1.2) Normalização - 1.2.1) Normalização Unicode NFC
+    # Início - 1) Pré-processamento - 1.2) Normalização - 1.2.2) Remoção de caracteres de controle
     @staticmethod
     def _unicode_normalize(text: str) -> str:
         """Normaliza para NFC e remove caracteres de controle exceto \\n e \\t."""
         text = unicodedata.normalize("NFC", text)
         # Remove ASCII ctrl chars (0–8, 11–31) mas mantém \n (10) e \t (9)
         return re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", text)
+    # Fim - 1) Pré-processamento - 1.2) Normalização - 1.2.1) Normalização Unicode NFC
+    # Fim - 1) Pré-processamento - 1.2) Normalização - 1.2.2) Remoção de caracteres de controle
 
+    # Início - 1) Pré-processamento - 1.2) Normalização - 1.2.3) Normalização de espaços múltiplos
     @staticmethod
     def _normalize_whitespace(text: str) -> str:
         """Colapsa múltiplos espaços/tabs em um único espaço; preserva \\n."""
         text = re.sub(r"[ \t]+", " ", text)      # espaços/tabs → um espaço
         text = re.sub(r"\n{3,}", "\n\n", text)   # >2 quebras → 2 quebras
         return text.strip()
+    # Fim - 1) Pré-processamento - 1.2) Normalização - 1.2.3) Normalização de espaços múltiplos
 
+    # Início - 1) Pré-processamento - 1.2) Normalização - 1.2.4) Padronização de datas para ISO 8601
     @staticmethod
     def _normalize_date_iso(text: str) -> str:
         """
@@ -138,7 +145,12 @@ class TextNormalizer:
         text = _RE_DATE_DMBR.sub(replace_ddmmyyyy, text)
         text = _RE_DATE_SHORT.sub(replace_ddmmyy, text)
         return text
+    # Fim - 1) Pré-processamento - 1.2) Normalização - 1.2.4) Padronização de datas para ISO 8601
 
+    # Início - 1) Pré-processamento - 1.2) Normalização - 1.2.5) Substituição de CPF por placeholder
+    # Início - 1) Pré-processamento - 1.2) Normalização - 1.2.6) Substituição de telefone por placeholder
+    # Início - 1) Pré-processamento - 1.2) Normalização - 1.2.7) Substituição de CEP por placeholder
+    # Início - 1) Pré-processamento - 1.2) Normalização - 1.2.8) Substituição de e-mail por placeholder
     @staticmethod
     def _mask_phi_patterns(text: str) -> str:
         """Substitui padrões numéricos de PHI por placeholders."""
@@ -147,6 +159,10 @@ class TextNormalizer:
         text = _RE_CEP.sub(PHI_PLACEHOLDER["cep"], text)
         text = _RE_EMAIL.sub(PHI_PLACEHOLDER["email"], text)
         return text
+    # Fim - 1) Pré-processamento - 1.2) Normalização - 1.2.5) Substituição de CPF por placeholder
+    # Fim - 1) Pré-processamento - 1.2) Normalização - 1.2.6) Substituição de telefone por placeholder
+    # Fim - 1) Pré-processamento - 1.2) Normalização - 1.2.7) Substituição de CEP por placeholder
+    # Fim - 1) Pré-processamento - 1.2) Normalização - 1.2.8) Substituição de e-mail por placeholder
 
     @staticmethod
     def _mask_dates(text: str) -> str:

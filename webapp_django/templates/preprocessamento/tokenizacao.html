@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Tokenização{% endblock %}
+{% block nav_preproc_parent %}active-parent{% endblock %}
+{% block nav_preproc_open %}true{% endblock %}
+{% block nav_preproc_show %}show{% endblock %}
+{% block nav_preproc_tokenizacao %}active{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3"><ol class="breadcrumb small">
+  <li class="breadcrumb-item text-muted">1) Pré-processamento</li>
+  <li class="breadcrumb-item active">1.4 Tokenização</li>
+</ol></nav>
+<h4 class="mb-1"><i class="bi bi-funnel me-2 text-primary"></i>Tokenização</h4>
+<p class="text-muted small mb-4">Word-level para CRF (compostos, decimais, pontuação separada) · extração de features · Subword para BERT (AutoTokenizer, alinhamento BIO, stride)</p>
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>
+  Implementação em <code>src/preprocessing/tokenizer.py</code>.
+  <br><small class="text-muted">Use o pipeline via CLI: <code>python src/preprocessing/pipeline.py --input data/raw/prescricoes.csv --doc-type prescricoes</code></small>
+</div>
+<div class="card border-0 bg-light mt-3">
+  <div class="card-body small text-muted">
+    <i class="bi bi-code-slash me-1"></i>
+    Código-fonte: <code>src/preprocessing/tokenizer.py</code> · Notebook: <code>notebooks/02_preprocessamento.ipynb</code>
+  </div>
+</div>
+{% endblock %}

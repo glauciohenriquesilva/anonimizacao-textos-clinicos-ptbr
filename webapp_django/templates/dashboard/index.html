@@ -66,10 +66,12 @@
     <div class="d-flex align-items-center flex-wrap gap-2">
       {% for step in pipeline_steps %}
         <div class="d-flex align-items-center">
-          <div class="badge bg-primary fs-6 p-2">{{ step.number }}</div>
-          <span class="ms-2 me-2">{{ step.label }}</span>
+          <a href="{% url step.url_name %}" class="text-decoration-none">
+            <div class="badge bg-primary fs-6 p-2">{{ step.number }}</div>
+            <span class="ms-2 me-2 text-dark">{{ step.label }}</span>
+          </a>
           {% if not forloop.last %}
-            <i class="bi bi-arrow-right text-muted"></i>
+            <i class="bi bi-arrow-right text-muted me-2"></i>
           {% endif %}
         </div>
       {% endfor %}
@@ -93,7 +95,7 @@
       <tbody>
         {% for exp in recent_experiments %}
         <tr>
-          <td><a href="{% url 'experiments:detail' exp.pk %}">{{ exp.name }}</a></td>
+          <td><a href="{% url 'ner:experimento_detalhe' exp.pk %}">{{ exp.name }}</a></td>
           <td><code>{{ exp.get_model_name_display }}</code></td>
           <td>
             {% if exp.result and exp.result.f1_overall %}

@@ -58,6 +58,7 @@ class ModelConfig:
 
 # ─── Definição dos modelos ────────────────────────────────────────────────────
 
+# Início - 2) NER - 2.3) Treinamento - Registro de configurações dos modelos NER
 MODEL_REGISTRY: dict[str, ModelConfig] = {
 
     "crf": ModelConfig(
@@ -141,6 +142,8 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         ),
     ),
 }
+
+# Fim - 2) NER - 2.3) Treinamento - Registro de configurações dos modelos NER
 
 # Alias para acesso rápido
 ALL_MODEL_NAMES: list[str] = list(MODEL_REGISTRY.keys())

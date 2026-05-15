@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+# Início - 1) Pré-processamento - 1.3) Segmentação - 1.3.2) Proteção de abreviações médicas
 # Abreviações que NÃO devem terminar sentenças (causariam falsos positivos)
 MEDICAL_ABBREV_NO_SPLIT = {
     # Vias de administração
@@ -38,6 +39,7 @@ MEDICAL_ABBREV_NO_SPLIT = {
 _RE_ABBREV_POINT = re.compile(
     r"(?<!\w)(" + "|".join(re.escape(a) for a in MEDICAL_ABBREV_NO_SPLIT) + r")\."
 )
+# Fim - 1) Pré-processamento - 1.3) Segmentação - 1.3.2) Proteção de abreviações médicas
 
 # Delimitadores de sentença: "." "!" "?" seguidos de espaço+maiúscula, ou "\n\n"
 _RE_SENT_DELIM = re.compile(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ])")
@@ -82,6 +84,8 @@ class ClinicalSegmenter:
                 f"Erro: {e}"
             )
 
+    # Início - 1) Pré-processamento - 1.3) Segmentação - 1.3.3) Segmentação de texto livre clínico
+    # Início - 1) Pré-processamento - 1.3) Segmentação - 1.3.5) Filtragem de segmentos curtos (mínimo 2 tokens)
     def segment_free_text(self, text: str) -> list[str]:
         """
         Segmenta texto clínico narrativo livre.
@@ -115,7 +119,11 @@ class ClinicalSegmenter:
                 cleaned.append(seg)
 
         return cleaned
+    # Fim - 1) Pré-processamento - 1.3) Segmentação - 1.3.3) Segmentação de texto livre clínico
+    # Fim - 1) Pré-processamento - 1.3) Segmentação - 1.3.5) Filtragem de segmentos curtos (mínimo 2 tokens)
 
+    # Início - 1) Pré-processamento - 1.3) Segmentação - 1.3.4) Segmentação de template estruturado
+    # Início - 1) Pré-processamento - 1.3) Segmentação - 1.3.5) Filtragem de segmentos curtos (mínimo 2 tokens)
     def segment_template(self, text: str) -> list[str]:
         """
         Segmenta templates estruturados (formulários UTI/enfermagem).
@@ -139,6 +147,8 @@ class ClinicalSegmenter:
             segments.append(" ".join(current))
 
         return [s for s in segments if len(s.split()) >= 2]
+    # Fim - 1) Pré-processamento - 1.3) Segmentação - 1.3.4) Segmentação de template estruturado
+    # Fim - 1) Pré-processamento - 1.3) Segmentação - 1.3.5) Filtragem de segmentos curtos (mínimo 2 tokens)
 
     def segment(self, text: str, text_type: str = "texto_livre") -> list[str]:
         """

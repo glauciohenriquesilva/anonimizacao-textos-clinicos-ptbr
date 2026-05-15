@@ -74,11 +74,13 @@ class MarkerSubstitutor:
         print(result.anonymized_text)
     """
 
+    # Início - 3) Anonimização - 3.1) Substituição por Marcadores - 3.1.1) Filtragem de entidades PHI
     # Tipos PHI que devem ser anonimizados
     PHI_TYPES = {
         "PESSOA", "DOCUMENTO", "ENDEREÇO", "CONTATO",
         "DATA", "HORA", "INSTITUIÇÃO",
     }
+    # Fim - 3) Anonimização - 3.1) Substituição por Marcadores - 3.1.1) Filtragem de entidades PHI
 
     def __init__(
         self,
@@ -101,6 +103,7 @@ class MarkerSubstitutor:
         self._counters: dict[str, int] = defaultdict(int)
         self._text_to_marker: dict[str, str] = {}
 
+    # Início - 3) Anonimização - 3.1) Substituição por Marcadores - 3.1.2) Geração de marcadores por tipo de entidade
     def _get_marker(self, entity_type: str, original_text: str) -> str:
         """Retorna o marcador para uma entidade, criando se não existir."""
         if self.consistent_mapping and original_text in self._text_to_marker:
@@ -119,7 +122,9 @@ class MarkerSubstitutor:
             self._text_to_marker[original_text] = marker
 
         return marker
+    # Fim - 3) Anonimização - 3.1) Substituição por Marcadores - 3.1.2) Geração de marcadores por tipo de entidade
 
+    # Início - 3) Anonimização - 3.1) Substituição por Marcadores - 3.1.3) Substituição de spans PHI no texto
     def anonymize(
         self,
         text: str,
@@ -190,6 +195,7 @@ class MarkerSubstitutor:
             replacements=list(reversed(replacements)),  # ordem original
             n_phi_found=len(replacements),
         )
+    # Fim - 3) Anonimização - 3.1) Substituição por Marcadores - 3.1.3) Substituição de spans PHI no texto
 
     def anonymize_batch(
         self,

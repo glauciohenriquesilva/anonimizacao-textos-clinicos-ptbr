@@ -30,6 +30,7 @@ from .models import get_model_config, ModelConfig
 
 # ─── Carregamento de dados ────────────────────────────────────────────────────
 
+# Início - 2) NER - 2.3) Treinamento - 2.3.1) Carregamento de dados CoNLL (tokens e rótulos BIO)
 def load_conll(filepath: str) -> list[tuple[list[str], list[str]]]:
     """
     Carrega arquivo CoNLL-2003 (token\\tlabel por linha, sentenças separadas por \\n).
@@ -57,6 +58,7 @@ def load_conll(filepath: str) -> list[tuple[list[str], list[str]]]:
         sentences.append((tokens, labels))
 
     return sentences
+# Fim - 2) NER - 2.3) Treinamento - 2.3.1) Carregamento de dados CoNLL (tokens e rótulos BIO)
 
 
 # ─── CRF Trainer ─────────────────────────────────────────────────────────────
@@ -72,6 +74,7 @@ class CRFTrainer:
         self.config = config or get_model_config("crf")
         self.model = None
 
+    # Início - 2) NER - 2.3) Treinamento - 2.3.2) Extração de features por token (CRF)
     @staticmethod
     def _extract_features(tokens: list[str], i: int) -> dict:
         """Extrai features de contexto para o token na posição i."""
@@ -113,7 +116,9 @@ class CRFTrainer:
 
     def _sentence_to_features(self, tokens: list[str]) -> list[dict]:
         return [self._extract_features(tokens, i) for i in range(len(tokens))]
+    # Fim - 2) NER - 2.3) Treinamento - 2.3.2) Extração de features por token (CRF)
 
+    # Início - 2) NER - 2.3) Treinamento - 2.3.3) Treinamento do modelo CRF (sklearn-crfsuite)
     def train(
         self,
         train_sentences: list[tuple[list[str], list[str]]],
@@ -151,14 +156,18 @@ class CRFTrainer:
             y_pred = self.model.predict(X_dev)
             metrics = NERMetrics.compute_seqeval(y_true, y_pred)
             print(f"  Dev F1: {metrics['overall_f1']:.4f}")
+    # Fim - 2) NER - 2.3) Treinamento - 2.3.3) Treinamento do modelo CRF (sklearn-crfsuite)
 
+    # Início - 2) NER - 2.3) Treinamento - 2.3.5) Predição / Inferência NER
     def predict(self, sentences: list[list[str]]) -> list[list[str]]:
         """Prediz rótulos BIO para lista de sentenças tokenizadas."""
         if self.model is None:
             raise RuntimeError("Modelo não treinado. Execute train() primeiro.")
         X = [self._sentence_to_features(tokens) for tokens in sentences]
         return self.model.predict(X)
+    # Fim - 2) NER - 2.3) Treinamento - 2.3.5) Predição / Inferência NER
 
+    # Início - 2) NER - 2.4) Avaliação - 2.4.1) Serialização do modelo (save / load)
     def save(self, output_path: Path) -> None:
         """Salva modelo CRF em pickle."""
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -171,10 +180,12 @@ class CRFTrainer:
         with open(model_path, "rb") as f:
             self.model = pickle.load(f)
         print(f"✓ Modelo CRF carregado de {model_path}")
+    # Fim - 2) NER - 2.4) Avaliação - 2.4.1) Serialização do modelo (save / load)
 
 
 # ─── BERT Trainer (stub) ──────────────────────────────────────────────────────
 
+# Início - 2) NER - 2.3) Treinamento - 2.3.4) Configuração do HuggingFace Trainer (BERT / mmBERT / ModernBERT)
 class BERTNERTrainer:
     """
     Treina modelos BERT para NER via HuggingFace Trainer.
@@ -229,6 +240,7 @@ class BERTNERTrainer:
 
     def load(self, model_dir: str) -> None:
         raise NotImplementedError("Implementar no notebook Colab.")
+# Fim - 2) NER - 2.3) Treinamento - 2.3.4) Configuração do HuggingFace Trainer (BERT / mmBERT / ModernBERT)
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────

@@ -93,11 +93,13 @@ class PreprocessingPipeline:
 
     # ── Detecção de tipo de texto ───────────────────────────────────────────
 
+    # Início - 1) Pré-processamento - 1.3) Segmentação - 1.3.1) Detecção do tipo de texto
     @staticmethod
     def _detect_text_type(text: str) -> str:
         """Detecta se o texto é template ou livre (reutiliza lógica do exploratory)."""
         from ..analysis.exploratory import classify_text_type
         return classify_text_type(text)
+    # Fim - 1) Pré-processamento - 1.3) Segmentação - 1.3.1) Detecção do tipo de texto
 
     # ── Processamento por documento ─────────────────────────────────────────
 
@@ -141,6 +143,9 @@ class PreprocessingPipeline:
 
     # ── Processamento em lote ───────────────────────────────────────────────
 
+    # Início - 1) Pré-processamento - 1.1) Carregamento do DataSet - 1.1.1) Leitura do DataFrame por tipo de documento
+    # Início - 1) Pré-processamento - 1.1) Carregamento do DataSet - 1.1.2) Seleção da coluna de texto (ds_evolucao / ds_parecer)
+    # Início - 1) Pré-processamento - 1.1) Carregamento do DataSet - 1.1.3) Seleção da coluna de ID para rastreabilidade
     def run(self, df: pd.DataFrame) -> list[TokenizedSentence]:
         """
         Processa um DataFrame inteiro.
@@ -175,9 +180,13 @@ class PreprocessingPipeline:
             f"{len(all_sentences)} sentenças | {n_empty} documentos vazios ignorados"
         )
         return all_sentences
+    # Fim - 1) Pré-processamento - 1.1) Carregamento do DataSet - 1.1.1) Leitura do DataFrame por tipo de documento
+    # Fim - 1) Pré-processamento - 1.1) Carregamento do DataSet - 1.1.2) Seleção da coluna de texto (ds_evolucao / ds_parecer)
+    # Fim - 1) Pré-processamento - 1.1) Carregamento do DataSet - 1.1.3) Seleção da coluna de ID para rastreabilidade
 
     # ── Exportação ──────────────────────────────────────────────────────────
 
+    # Início - 1) Pré-processamento - 1.5) Exportação - 1.5.1) Exportação no formato CoNLL-2003
     @staticmethod
     def to_conll(
         sentences: list[TokenizedSentence],
@@ -206,7 +215,9 @@ class PreprocessingPipeline:
                 f.write("\n\n")
 
         print(f"✓ CoNLL exportado: {output_path} ({len(sentences)} sentenças)")
+    # Fim - 1) Pré-processamento - 1.5) Exportação - 1.5.1) Exportação no formato CoNLL-2003
 
+    # Início - 1) Pré-processamento - 1.5) Exportação - 1.5.2) Exportação no formato JSONL
     @staticmethod
     def to_jsonl(
         sentences: list[TokenizedSentence],
@@ -234,6 +245,7 @@ class PreprocessingPipeline:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
         print(f"✓ JSONL exportado: {output_path} ({len(sentences)} sentenças)")
+    # Fim - 1) Pré-processamento - 1.5) Exportação - 1.5.2) Exportação no formato JSONL
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────

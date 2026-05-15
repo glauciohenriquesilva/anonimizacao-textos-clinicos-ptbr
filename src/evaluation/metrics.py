@@ -74,6 +74,8 @@ class AnonymizationMetricResult:
 class NERMetrics:
     """Calcula métricas NER entity-level usando seqeval."""
 
+    # Início - 2) NER - 2.4) Avaliação - 2.4.2) Cálculo de Precision, Recall e F1 (seqeval / entity-level)
+    # Início - 2) NER - 2.4) Avaliação - 2.4.3) Relatório de F1 por tipo de entidade
     @staticmethod
     def compute_seqeval(
         y_true: list[list[str]],
@@ -113,7 +115,10 @@ class NERMetrics:
             }
 
         return result
+    # Fim - 2) NER - 2.4) Avaliação - 2.4.2) Cálculo de Precision, Recall e F1 (seqeval / entity-level)
+    # Fim - 2) NER - 2.4) Avaliação - 2.4.3) Relatório de F1 por tipo de entidade
 
+    # Início - 2) NER - 2.1) Anotação Gold Standard - 2.1.5) Concordância inter-anotadores (Cohen's Kappa)
     @staticmethod
     def compute_cohen_kappa(
         annot1: list[str], annot2: list[str]
@@ -133,6 +138,7 @@ class NERMetrics:
         except ImportError:
             raise RuntimeError("scikit-learn não instalado.")
         return float(cohen_kappa_score(annot1, annot2))
+    # Fim - 2) NER - 2.1) Anotação Gold Standard - 2.1.5) Concordância inter-anotadores (Cohen's Kappa)
 
 
 # ─── Métricas de anonimização ─────────────────────────────────────────────────
@@ -142,6 +148,8 @@ class AnonymizationMetrics:
     Calcula métricas do framework TILD para avaliação da anonimização.
     """
 
+    # Início - 3) Anonimização - 3.2) Avaliação - 3.2.1) Cobertura de PHI anonimizado (Coverage)
+    # Início - 3) Anonimização - 3.2) Avaliação - 3.2.2) Precisão da anonimização (Precision_anon)
     @staticmethod
     def compute_phi_coverage(
         phi_spans_original: list[tuple],
@@ -175,7 +183,10 @@ class AnonymizationMetrics:
             precision = true_phi_modified / len(anonymized_set) if anonymized_set else 1.0
 
         return coverage, precision
+    # Fim - 3) Anonimização - 3.2) Avaliação - 3.2.1) Cobertura de PHI anonimizado (Coverage)
+    # Fim - 3) Anonimização - 3.2) Avaliação - 3.2.2) Precisão da anonimização (Precision_anon)
 
+    # Início - 3) Anonimização - 3.2) Avaliação - 3.2.3) ΔF1 — Preservação de utilidade clínica
     @staticmethod
     def compute_delta_f1(
         f1_original: float, f1_anonymized: float
@@ -189,7 +200,9 @@ class AnonymizationMetrics:
         Referência: Schiezaro et al. (2026) — métrica central do TILD.
         """
         return f1_anonymized - f1_original
+    # Fim - 3) Anonimização - 3.2) Avaliação - 3.2.3) ΔF1 — Preservação de utilidade clínica
 
+    # Início - 3) Anonimização - 3.3) Relatório - 3.3.3) Levenshtein Ratio (LR)
     @staticmethod
     def compute_levenshtein_ratio(original: str, anonymized: str) -> float:
         """
@@ -206,6 +219,7 @@ class AnonymizationMetrics:
             # Fallback simples (lento para textos grandes)
             return _levenshtein_ratio_simple(original, anonymized)
         return ratio(original, anonymized)
+    # Fim - 3) Anonimização - 3.3) Relatório - 3.3.3) Levenshtein Ratio (LR)
 
     def compute_all(
         self,

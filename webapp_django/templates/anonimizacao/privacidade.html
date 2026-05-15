@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Avaliação de Privacidade{% endblock %}
+{% block nav_anon_parent %}active-parent{% endblock %}
+{% block nav_anon_open %}true{% endblock %}
+{% block nav_anon_show %}show{% endblock %}
+{% block nav_anon_privacidade %}active{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3"><ol class="breadcrumb small">
+  <li class="breadcrumb-item text-muted">3) Anonimização</li>
+  <li class="breadcrumb-item active">3.2 Privacidade — Dimensão L</li>
+</ol></nav>
+<h4 class="mb-1"><i class="bi bi-shield-lock me-2 text-primary"></i>Avaliação de Privacidade</h4>
+<p class="text-muted small mb-4">Dimensão L do TILD: Coverage (Recall de PHI) · Precision_anon · Levenshtein Ratio</p>
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="card metric-card green h-100 text-center p-3">
+    <div class="text-muted small">Coverage</div>
+    <div class="fs-2 fw-bold text-success">{{ coverage|default:"—" }}</div>
+    <div class="small text-muted">TP / (TP + FN) — PHI capturado</div>
+  </div></div>
+  <div class="col-md-4"><div class="card metric-card h-100 text-center p-3">
+    <div class="text-muted small">Precision_anon</div>
+    <div class="fs-2 fw-bold text-primary">{{ prec_anon|default:"—" }}</div>
+    <div class="small text-muted">TP / (TP + FP) — precisão</div>
+  </div></div>
+  <div class="col-md-4"><div class="card metric-card orange h-100 text-center p-3">
+    <div class="text-muted small">Levenshtein Ratio</div>
+    <div class="fs-2 fw-bold text-warning">{{ lr|default:"—" }}</div>
+    <div class="small text-muted">Similaridade orig. vs. anon.</div>
+  </div></div>
+</div>
+<div class="alert alert-info small">
+  Referência: Pissarra et al. (2024) — métricas ALID, LR, LRDI, LRQI.
+</div>
+<div class="card border-0 bg-light mt-3">
+  <div class="card-body small text-muted">
+    <i class="bi bi-code-slash me-1"></i>
+    Código-fonte: <code>src/evaluation/metrics.py → AnonymizationMetrics</code>
+  </div>
+</div>
+{% endblock %}

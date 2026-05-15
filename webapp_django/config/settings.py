@@ -34,12 +34,15 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # Apps do projeto
+    # Apps do projeto — nova estrutura espelhada no menu
     "webapp_django.apps.dashboard",
     "webapp_django.apps.dataset",
-    "webapp_django.apps.experiments",
-    "webapp_django.apps.anonymizer",
-    "webapp_django.apps.results",
+    "webapp_django.apps.analise_exploratoria",
+    "webapp_django.apps.preprocessamento",
+    "webapp_django.apps.ner",
+    "webapp_django.apps.anonimizacao",
+    "webapp_django.apps.resultados",
+
 ]
 
 # ─── Middleware ───────────────────────────────────────────────────────────────
