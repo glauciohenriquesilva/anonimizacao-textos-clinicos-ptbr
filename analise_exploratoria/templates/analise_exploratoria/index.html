@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Análise Exploratória{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-bar-chart-steps me-2 text-primary"></i>Análise Exploratória
+</h4>
+
+<!-- Formulário -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label">Arquivo de prescrições</label>
+          <input type="file" name="arquivo_prescricoes" class="form-control" accept=".csv" />
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Arquivo de pareceres</label>
+          <input type="file" name="arquivo_pareceres" class="form-control" accept=".csv" />
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-play-fill me-1"></i>Executar
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if registros %}
+<!-- Cards de métricas -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Total de Registros</div>
+        <div class="fs-3 fw-bold">{{ registros.total }}</div>
+        <div class="small text-muted">
+          {{ registros.prescricoes }} prescrições · {{ registros.pareceres }} pareceres
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Pacientes Únicos</div>
+        <div class="fs-3 fw-bold">{{ pacientes_unicos }}</div>
+        <div class="small text-muted">cd_paciente distintos</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Período Coberto</div>
+        <div class="fs-5 fw-bold mt-1">{{ periodo.inicio|date:"d/m/Y" }} — {{ periodo.fim|date:"d/m/Y" }}</div>
+        <div class="small text-muted">dt_atendimento min/máx</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Hospitais / Unidades</div>
+        <div class="fs-3 fw-bold">{{ hospitais }}</div>
+        <div class="small text-muted">ds_multi_empresa distintos</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Especialidades -->
+<div class="card">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-list-ol me-2"></i>Top Especialidades Médicas
+  </div>
+  <div class="card-body">
+    <table class="table table-sm table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Especialidade</th>
+          <th class="text-end">Registros</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for especialidade, total in especialidades.items %}
+        <tr>
+          <td class="text-muted">{{ forloop.counter }}</td>
+          <td>{{ especialidade }}</td>
+          <td class="text-end">{{ total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
