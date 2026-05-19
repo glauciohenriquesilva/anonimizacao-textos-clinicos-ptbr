@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Execuções de Análise{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-table me-2"></i>Execuções de Análise</h4>
+    <a href="{% url 'analise_exploratoria:index' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i>Nova Análise
+    </a>
+</div>
+
+{% if execucoes %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Data/Hora</th>
+                    <th>Registros</th>
+                    <th>Prescrições</th>
+                    <th>Pareceres</th>
+                    <th>Pacientes</th>
+                    <th>Hospitais</th>
+                    <th>Observações</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in execucoes %}
+                <tr>
+                    <td class="text-muted">{{ e.id }}</td>
+                    <td>{{ e.criado_em|date:"d/m/Y H:i" }}</td>
+                    <td>{{ e.total_registros|floatformat:"0" }}</td>
+                    <td>{{ e.total_prescricoes|floatformat:"0" }}</td>
+                    <td>{{ e.total_pareceres|floatformat:"0" }}</td>
+                    <td>{{ e.pacientes_unicos|floatformat:"0" }}</td>
+                    <td>{{ e.total_hospitais }}</td>
+                    <td>
+                        {% if e.obs %}
+                            <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ e.obs }}">
+                                {{ e.obs }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted fst-italic">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'analise_exploratoria:editar_execucao' e.id %}" 
+                           class="btn btn-outline-secondary btn-sm me-1" title="Editar observação">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'analise_exploratoria:excluir_execucao' e.id %}" 
+                           class="btn btn-outline-danger btn-sm" title="Excluir">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>Nenhuma execução registrada ainda.
+    <a href="{% url 'analise_exploratoria:index' %}">Execute uma análise</a> para começar.
+</div>
+{% endif %}
+{% endblock %}

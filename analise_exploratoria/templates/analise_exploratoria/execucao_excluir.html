@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Excluir Execução{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+
+        <div class="d-flex align-items-center mb-4">
+            <a href="{% url 'analise_exploratoria:listar_execucoes' %}" class="btn btn-outline-secondary btn-sm me-3">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <h4 class="mb-0"><i class="bi bi-trash me-2 text-danger"></i>Excluir Execução #{{ execucao.id }}</h4>
+        </div>
+
+        <div class="card border-danger shadow-sm">
+            <div class="card-body">
+                <p class="mb-3">Tem certeza que deseja excluir esta execução? Essa ação não pode ser desfeita.</p>
+
+                <ul class="list-group list-group-flush mb-4">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Data/Hora</span>
+                        <strong>{{ execucao.criado_em|date:"d/m/Y H:i" }}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Total de registros</span>
+                        <strong>{{ execucao.total_registros|floatformat:"0" }}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Hospitais</span>
+                        <strong>{{ execucao.total_hospitais }}</strong>
+                    </li>
+                    {% if execucao.obs %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Observação</span>
+                        <span class="text-end" style="max-width: 60%;">{{ execucao.obs }}</span>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Sim, excluir
+                    </button>
+                    <a href="{% url 'analise_exploratoria:listar_execucoes' %}" class="btn btn-outline-secondary">
+                        Cancelar
+                    </a>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

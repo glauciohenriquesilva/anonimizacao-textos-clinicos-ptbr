@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 
 INSTALLED_APPS += [
     'analise_exploratoria',
+    'preprocessamento',
 ]
 
 

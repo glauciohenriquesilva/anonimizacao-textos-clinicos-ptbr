@@ -32,7 +32,9 @@
 </div>
 
 {% if registros %}
-<!-- Cards de métricas -->
+
+<!-- 0.2 Cards de métricas -->
+<h5 class="mb-3">0.2 Estatísticas Descritivas</h5>
 <div class="row g-3 mb-4">
   <div class="col-md-3">
     <div class="card metric-card h-100">
@@ -75,7 +77,7 @@
 </div>
 
 <!-- Top Especialidades -->
-<div class="card">
+<div class="card mb-4">
   <div class="card-header fw-semibold">
     <i class="bi bi-list-ol me-2"></i>Top Especialidades Médicas
   </div>
@@ -100,6 +102,193 @@
     </table>
   </div>
 </div>
+
+<!-- 0.3 Distribuição de Tokens -->
+<h5 class="mb-3">0.3 Distribuição de Tokens</h5>
+<div class="row g-3 mb-4">
+  <!-- Prescrições -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Tokens — Prescrições</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><td class="ps-3 text-muted">Mínimo</td><td>{{ tokens_prescricoes.min }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">p25</td><td>{{ tokens_prescricoes.p25 }}</td></tr>
+            <tr><td class="ps-3 text-muted">Mediana</td><td>{{ tokens_prescricoes.mediana }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">Média</td><td>{{ tokens_prescricoes.media }}</td></tr>
+            <tr><td class="ps-3 text-muted">p75</td><td>{{ tokens_prescricoes.p75 }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">Máximo</td><td>{{ tokens_prescricoes.max }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- Pareceres -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Tokens — Pareceres</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><td class="ps-3 text-muted">Mínimo</td><td>{{ tokens_pareceres.min }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">p25</td><td>{{ tokens_pareceres.p25 }}</td></tr>
+            <tr><td class="ps-3 text-muted">Mediana</td><td>{{ tokens_pareceres.mediana }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">Média</td><td>{{ tokens_pareceres.media }}</td></tr>
+            <tr><td class="ps-3 text-muted">p75</td><td>{{ tokens_pareceres.p75 }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">Máximo</td><td>{{ tokens_pareceres.max }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- Caracteres -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Caracteres — Prescrições</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><td class="ps-3 text-muted">Mínimo</td><td>{{ caracteres_prescricoes.min }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">p25</td><td>{{ caracteres_prescricoes.p25 }}</td></tr>
+            <tr><td class="ps-3 text-muted">Mediana</td><td>{{ caracteres_prescricoes.mediana }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">Média</td><td>{{ caracteres_prescricoes.media }}</td></tr>
+            <tr><td class="ps-3 text-muted">p75</td><td>{{ caracteres_prescricoes.p75 }}</td></tr>
+            <tr class="table-light"><td class="ps-3 text-muted">Máximo</td><td>{{ caracteres_prescricoes.max }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 0.4 Classificação do Tipo de Texto -->
+<h5 class="mb-3">0.4 Classificação do Tipo de Texto</h5>
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Prescrições</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-1 small">
+          <span>Texto Livre</span>
+          <strong>{{ tipos_prescricoes.pct_texto_livre }}% ({{ tipos_prescricoes.texto_livre }})</strong>
+        </div>
+        <div class="progress mb-3" style="height:10px">
+          <div class="progress-bar bg-success" style="width:{{ tipos_prescricoes.pct_texto_livre }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between mb-1 small">
+          <span>Template Estruturado</span>
+          <strong>{{ tipos_prescricoes.pct_template }}% ({{ tipos_prescricoes.template_estruturado }})</strong>
+        </div>
+        <div class="progress" style="height:10px">
+          <div class="progress-bar bg-warning" style="width:{{ tipos_prescricoes.pct_template }}%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Pareceres</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-1 small">
+          <span>Texto Livre</span>
+          <strong>{{ tipos_pareceres.pct_texto_livre }}% ({{ tipos_pareceres.texto_livre }})</strong>
+        </div>
+        <div class="progress mb-3" style="height:10px">
+          <div class="progress-bar bg-success" style="width:{{ tipos_pareceres.pct_texto_livre }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between mb-1 small">
+          <span>Template Estruturado</span>
+          <strong>{{ tipos_pareceres.pct_template }}% ({{ tipos_pareceres.template_estruturado }})</strong>
+        </div>
+        <div class="progress" style="height:10px">
+          <div class="progress-bar bg-warning" style="width:{{ tipos_pareceres.pct_template }}%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 0.5 Geração de Saídas -->
+<h5 class="mb-3">0.5 Geração de Saídas</h5>
+<div class="card mb-4">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-download me-2"></i>Exportar Resultados
+  </div>
+  <div class="card-body d-flex gap-2">
+    <a href="{% url 'analise_exploratoria:exportar_csv' execucao_id %}" class="btn btn-outline-success">
+      <i class="bi bi-filetype-csv me-1"></i>Tabela 1 — CSV
+    </a>
+    <a href="{% url 'analise_exploratoria:exportar_json' execucao_id %}" class="btn btn-outline-primary">
+      <i class="bi bi-filetype-json me-1"></i>Stats completas — JSON
+    </a>
+  </div>
+</div>
+
+<!-- 0.5.3 Gráfico top especialidades -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-bar-chart-horizontal me-2"></i>0.5.3 Top Especialidades
+  </div>
+  <div class="card-body">
+    <canvas id="graficoEspecialidades" height="120"></canvas>
+  </div>
+</div>
+
+<!-- 0.5.2 Histogramas de tokens -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">0.5.2 Histograma — Tokens Prescrições</div>
+      <div class="card-body">
+        <canvas id="histogramaPresc"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">0.5.2 Histograma — Tokens Pareceres</div>
+      <div class="card-body">
+        <canvas id="histogramaPar"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% if execucao_id %}
+<script>
+  new Chart(document.getElementById('graficoEspecialidades'), {
+    type: 'bar',
+    data: {
+      labels: {{ especialidades_labels|safe }},
+      datasets: [{ label: 'Registros', data: {{ especialidades_valores|safe }}, backgroundColor: 'rgba(13,110,253,0.7)' }]
+    },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+  });
+
+  new Chart(document.getElementById('histogramaPresc'), {
+    type: 'bar',
+    data: {
+      labels: {{ histograma_prescricoes.rotulos|safe }},
+      datasets: [{ label: 'Documentos', data: {{ histograma_prescricoes.valores|safe }}, backgroundColor: 'rgba(25,135,84,0.7)' }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: true } } }
+  });
+
+  new Chart(document.getElementById('histogramaPar'), {
+    type: 'bar',
+    data: {
+      labels: {{ histograma_pareceres.rotulos|safe }},
+      datasets: [{ label: 'Documentos', data: {{ histograma_pareceres.valores|safe }}, backgroundColor: 'rgba(255,193,7,0.7)' }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: true } } }
+  });
+</script>
+{% endif %}
 {% endblock %}
