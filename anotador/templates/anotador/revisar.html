@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar Discordâncias{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">
+    <i class="bi bi-exclamation-triangle me-2 text-warning"></i>Adjudicação de Discordâncias
+  </h4>
+  <a href="{% url 'anotador:resumo_sessao' sessao.id %}" class="btn btn-outline-secondary btn-sm">
+    Voltar ao resumo
+  </a>
+</div>
+
+{% if not discordancias %}
+<div class="alert alert-success">
+  <i class="bi bi-check-circle me-2"></i>
+  Nenhuma discordância encontrada — os anotadores concordaram em todos os tokens.
+</div>
+{% else %}
+<p class="text-muted small mb-4">
+  {{ discordancias|length }} sentença(s) com discordâncias.
+  Para cada token discordante, escolha a label final.
+</p>
+
+{% for item in discordancias %}
+<div class="card mb-4" id="sentenca-{{ item.sentenca.id }}">
+  <div class="card-header fw-semibold">
+    Sentença {{ item.sentenca.ordem }} —
+    <span class="badge bg-secondary">{{ item.sentenca.doc_type }}</span>
+    <span class="badge bg-warning text-dark ms-2">
+      {{ item.posicoes|length }} discordância(s)
+    </span>
+  </div>
+  <div class="card-body">
+
+    <!-- Tokens da sentença -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      {% for token in item.sentenca.tokens %}
+      <span class="badge fs-6 bg-light text-dark border" style="font-family:monospace;">
+        {{ token }}
+      </span>
+      {% endfor %}
+    </div>
+
+    <!-- Tabela de discordâncias -->
+    <table class="table table-sm table-bordered">
+      <thead class="table-light">
+        <tr>
+          <th>Token</th>
+          <th>Anotador 1</th>
+          <th>Anotador 2</th>
+          <th>Label final</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pos in item.posicoes %}
+        <tr>
+          <td><code>{{ pos.token }}</code></td>
+          <td><span class="badge bg-primary">{{ pos.label_a1 }}</span></td>
+          <td><span class="badge bg-danger">{{ pos.label_a2 }}</span></td>
+          <td>
+            <select class="form-select form-select-sm label-final"
+                    data-sentenca="{{ item.sentenca.id }}"
+                    data-posicao="{{ pos.posicao }}">
+              <option value="{{ pos.label_a1 }}" selected>{{ pos.label_a1 }} (A1)</option>
+              <option value="{{ pos.label_a2 }}">{{ pos.label_a2 }} (A2)</option>
+              <option value="O">O (nenhuma entidade)</option>
+            </select>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <button class="btn btn-sm btn-success"
+            onclick="salvarAdjudicacao({{ item.sentenca.id }}, {{ item.sentenca.tokens|length }})">
+      <i class="bi bi-check-lg me-1"></i>Salvar adjudicação desta sentença
+    </button>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function salvarAdjudicacao(sentencaId, nTokens) {
+    // Monta array de labels para todos os tokens da sentença
+    // Tokens sem discordância mantêm a label do anotador 1 (padrão no exportador)
+    const labels = Array(nTokens).fill(null);
+
+    // Preenche apenas as posições que têm select (discordâncias)
+    document.querySelectorAll(`[data-sentenca="${sentencaId}"]`).forEach(sel => {
+      const pos = parseInt(sel.dataset.posicao);
+      labels[pos] = sel.value;
+    });
+
+    fetch("{% url 'anotador:salvar_adjudicacao' sessao.id %}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}',
+      },
+      body: JSON.stringify({
+        sentenca_id: sentencaId,
+        labels: labels,
+      }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        const card = document.getElementById(`sentenca-${sentencaId}`);
+        card.classList.add('border-success');
+        card.querySelector('.card-header').innerHTML +=
+          ' <span class="badge bg-success">Adjudicado</span>';
+      }
+    });
+  }
+</script>
+{% endblock %}

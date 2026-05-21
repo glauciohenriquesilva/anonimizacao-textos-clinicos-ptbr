@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}NER — Avaliação{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-bar-chart me-2 text-primary"></i>Avaliação NER — Dimensão T do TILD
+</h4>
+
+<div class="card mb-4">
+  <div class="card-header fw-semibold">2.4 Avaliar modelo CRF no conjunto de teste</div>
+  <div class="card-body">
+    <p class="text-muted small">
+      Usa <code>outputs/ner/crf_model.joblib</code> e <code>outputs/ner/test.conll</code>.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-play-fill me-1"></i>Avaliar
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if f1_entity %}
+
+<!-- F1 geral -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">F1 Entity-level (micro)</div>
+        <div class="fs-3 fw-bold">{{ f1_entity.f1_micro }}</div>
+        <div class="small text-muted">seqeval — span-level</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">F1 Token-level (macro)</div>
+        <div class="fs-3 fw-bold">{{ f1_token.f1_macro }}</div>
+        <div class="small text-muted">sklearn — token-level</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">F1 Token-level (weighted)</div>
+        <div class="fs-3 fw-bold">{{ f1_token.f1_weighted }}</div>
+        <div class="small text-muted">sklearn — token-level</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- F1 por entidade -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">2.4.3 F1 por tipo de entidade PHI</div>
+  <div class="card-body">
+    <table class="table table-sm table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>Entidade</th>
+          <th class="text-end">Precision</th>
+          <th class="text-end">Recall</th>
+          <th class="text-end">F1</th>
+          <th class="text-end">Support</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entidade, metricas in f1_por_entidade.items %}
+        <tr>
+          <td><span class="badge bg-primary">{{ entidade }}</span></td>
+          <td class="text-end">{{ metricas.precision }}</td>
+          <td class="text-end">{{ metricas.recall }}</td>
+          <td class="text-end"><strong>{{ metricas.f1 }}</strong></td>
+          <td class="text-end text-muted">{{ metricas.support }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Tabela comparativa -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">2.4.5 Tabela comparativa dos modelos</div>
+  <div class="card-body">
+    <table class="table table-sm table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>Modelo</th>
+          <th class="text-end">F1 Entity</th>
+          <th class="text-end">F1 Token</th>
+          <th class="text-end">Precision</th>
+          <th class="text-end">Recall</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linha in tabela %}
+        <tr>
+          <td><strong>{{ linha.Modelo }}</strong></td>
+          <td class="text-end">{{ linha.F1 Entity }}</td>
+          <td class="text-end">{{ linha.F1 Token }}</td>
+          <td class="text-end">{{ linha.Precision }}</td>
+          <td class="text-end">{{ linha.Recall }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

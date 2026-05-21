@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Resumo da Sessão{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">
+    <i class="bi bi-journal-check me-2 text-primary"></i>{{ sessao.nome }}
+  </h4>
+  <div class="d-flex gap-2">
+    <a href="{% url 'anotador:anotar' sessao.id %}" class="btn btn-primary">
+      <i class="bi bi-pencil-square me-1"></i>Continuar Anotando
+    </a>
+    {% if concluiram %}
+    <a href="{% url 'anotador:kappa' sessao.id %}" class="btn btn-outline-success">
+      <i class="bi bi-calculator me-1"></i>Calcular Kappa
+    </a>
+    <a href="{% url 'anotador:revisar' sessao.id %}" class="btn btn-outline-warning">
+      <i class="bi bi-exclamation-triangle me-1"></i>Revisar Discordâncias
+    </a>
+    <a href="{% url 'anotador:exportar' sessao.id %}" class="btn btn-outline-success">
+      <i class="bi bi-download me-1"></i>Exportar CoNLL
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Progresso -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Total de Sentenças</div>
+        <div class="fs-3 fw-bold">{{ progresso.total }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Anotadas por mim</div>
+        <div class="fs-3 fw-bold">{{ progresso.anotadas }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Pendentes</div>
+        <div class="fs-3 fw-bold">{{ progresso.pendentes }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Progresso</div>
+        <div class="fs-3 fw-bold">{{ progresso.pct }}%</div>
+        <div class="progress mt-2" style="height:6px">
+          <div class="progress-bar bg-success" style="width:{{ progresso.pct }}%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Info da sessão -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Informações da Sessão</div>
+  <div class="card-body">
+    <p><strong>Experimento:</strong> {{ sessao.experimento|default:"—" }}</p>
+    <p><strong>Descrição:</strong> {{ sessao.descricao|default:"—" }}</p>
+    <p class="mb-0"><strong>Status dos anotadores:</strong>
+      {% if concluiram %}
+        <span class="text-success">Todos concluíram — pronto para Kappa e adjudicação</span>
+      {% else %}
+        <span class="text-warning">Aguardando todos os anotadores concluírem</span>
+      {% endif %}
+    </p>
+  </div>
+</div>
+{% endblock %}

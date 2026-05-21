@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Excluir Experimento{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-trash me-2 text-danger"></i>Excluir Experimento
+</h4>
+
+<div class="card">
+  <div class="card-body">
+    <p>Tem certeza que deseja excluir o experimento <strong>#{{ exp.id }} — {{ exp.nome }}</strong>?</p>
+    <p class="text-danger small">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      Esta ação excluirá também todos os dados vinculados: análise, pré-processamento,
+      anotação, divisão, treinamentos e avaliações.
+    </p>
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">
+        <i class="bi bi-trash me-1"></i>Confirmar exclusão
+      </button>
+      <a href="{% url 'analise_exploratoria:listar_experimentos' %}" class="btn btn-outline-secondary">
+        Cancelar
+      </a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Cohen's Kappa{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">
+    <i class="bi bi-calculator me-2 text-primary"></i>Cohen's Kappa — {{ sessao.nome }}
+  </h4>
+  <a href="{% url 'anotador:resumo_sessao' sessao.id %}" class="btn btn-outline-secondary btn-sm">
+    Voltar ao resumo
+  </a>
+</div>
+
+{% if not resultado %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  Não foi possível calcular o Kappa. Verifique se há pelo menos 2 anotadores com todas as sentenças anotadas.
+</div>
+{% else %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Cohen's Kappa (κ)</div>
+        <div class="fs-2 fw-bold {% if resultado.meta_atingida %}text-success{% else %}text-danger{% endif %}">
+          {{ resultado.kappa }}
+        </div>
+        <div class="small mt-1">
+          {% if resultado.meta_atingida %}
+            <span class="text-success"><i class="bi bi-check-circle me-1"></i>Meta κ ≥ 0.80 atingida</span>
+          {% else %}
+            <span class="text-danger"><i class="bi bi-x-circle me-1"></i>Meta κ ≥ 0.80 não atingida</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Concordância Observada (Po)</div>
+        <div class="fs-3 fw-bold">{{ resultado.po }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Concordância Esperada (Pe)</div>
+        <div class="fs-3 fw-bold">{{ resultado.pe }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Total de Tokens</div>
+        <div class="fs-3 fw-bold">{{ resultado.total_tokens }}</div>
+        <div class="small text-muted">{{ resultado.concordancias }} concordâncias</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Interpretação</div>
+  <div class="card-body">
+    <table class="table table-sm">
+      <thead class="table-light">
+        <tr><th>Faixa de κ</th><th>Interpretação</th></tr>
+      </thead>
+      <tbody>
+        <tr class="{% if resultado.kappa < 0 %}table-danger{% endif %}">
+          <td>&lt; 0</td><td>Pior que o acaso</td>
+        </tr>
+        <tr class="{% if resultado.kappa >= 0 and resultado.kappa < 0.20 %}table-danger{% endif %}">
+          <td>0.00 – 0.20</td><td>Concordância leve</td>
+        </tr>
+        <tr class="{% if resultado.kappa >= 0.20 and resultado.kappa < 0.40 %}table-warning{% endif %}">
+          <td>0.21 – 0.40</td><td>Concordância razoável</td>
+        </tr>
+        <tr class="{% if resultado.kappa >= 0.40 and resultado.kappa < 0.60 %}table-warning{% endif %}">
+          <td>0.41 – 0.60</td><td>Concordância moderada</td>
+        </tr>
+        <tr class="{% if resultado.kappa >= 0.60 and resultado.kappa < 0.80 %}table-info{% endif %}">
+          <td>0.61 – 0.80</td><td>Concordância substancial</td>
+        </tr>
+        <tr class="{% if resultado.kappa >= 0.80 %}table-success{% endif %}">
+          <td>0.81 – 1.00</td><td>Concordância quase perfeita ✓ meta</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Resultados TILD{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-table me-2 text-primary"></i>Consolidação dos Resultados — Tabela TILD
+</h4>
+
+<div class="card mb-4">
+  <div class="card-header fw-semibold">3.4.1 Gerar Tabela TILD Comparativa</div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">
+      Consolida as métricas das 3 dimensões do TILD para todos os modelos treinados e avaliados.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-play-fill me-1"></i>Gerar
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if tem_dados %}
+
+<!-- Tabela TILD -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Tabela TILD — Todos os Modelos</div>
+  <div class="card-body">
+    <table class="table table-sm table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>Modelo</th>
+          <th class="text-end">F1 NER</th>
+          <th class="text-end">Coverage</th>
+          <th class="text-end">Precision_anon</th>
+          <th class="text-end">Levenshtein</th>
+          <th class="text-end">F1 Original</th>
+          <th class="text-end">F1 Anon</th>
+          <th class="text-end">ΔF1</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linha in tabela %}
+        <tr>
+          <td><strong>{{ linha.Modelo }}</strong></td>
+          <td class="text-end">{{ linha.F1 NER }}</td>
+          <td class="text-end">{{ linha.Coverage }}</td>
+          <td class="text-end">{{ linha.Precision_anon }}</td>
+          <td class="text-end">{{ linha.Levenshtein }}</td>
+          <td class="text-end">{{ linha.F1 Original }}</td>
+          <td class="text-end">{{ linha.F1 Anonimizado }}</td>
+          <td class="text-end">{{ linha.ΔF1 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Downloads -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold"><i class="bi bi-download me-2"></i>Exportar</div>
+  <div class="card-body d-flex gap-2">
+    <a href="{% url 'anonimizacao:baixar_arquivo' 'tabela_tild.csv' %}" class="btn btn-outline-success">
+      <i class="bi bi-filetype-csv me-1"></i>Tabela TILD — CSV
+    </a>
+    <a href="{% url 'anonimizacao:baixar_arquivo' 'grafico_f1_ner.png' %}" class="btn btn-outline-primary">
+      <i class="bi bi-image me-1"></i>Gráfico F1 NER
+    </a>
+    <a href="{% url 'anonimizacao:baixar_arquivo' 'grafico_delta_f1.png' %}" class="btn btn-outline-warning">
+      <i class="bi bi-image me-1"></i>Gráfico ΔF1
+    </a>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

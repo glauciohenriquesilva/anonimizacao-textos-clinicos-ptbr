@@ -17,7 +17,9 @@ from .services.exploracao import (
     calcular_proporcao_tipos,
     calcular_histograma_tokens,
 )
-from .models import ExecucaoAnalise
+from .models import ExecucaoAnalise, Experimento
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 def index(request):
     contexto = {}
@@ -188,3 +190,108 @@ def exportar_json(request, id):
     response['Content-Disposition'] = f'attachment; filename="analise_execucao_{id}.json"'
     return response
 # Fim - 0) Análise Exploratória - 0.5) Geração de Saídas - 0.5.4) Exportação JSON com stats completas
+
+
+
+
+# Início - CRUD Experimento
+def listar_experimentos(request):
+    experimentos = Experimento.objects.all()
+    return render(request, 'analise_exploratoria/experimentos_lista.html', {'experimentos': experimentos})
+
+
+def novo_experimento(request):
+    if request.method == 'POST':
+        nome      = request.POST.get('nome')
+        descricao = request.POST.get('descricao', '')
+        obs       = request.POST.get('obs', '')
+        Experimento.objects.create(nome=nome, descricao=descricao, obs=obs)
+        messages.success(request, 'Experimento criado com sucesso.')
+        return redirect('analise_exploratoria:listar_experimentos')
+    return render(request, 'analise_exploratoria/experimento_form.html', {'acao': 'Novo'})
+
+
+def detalhe_experimento(request, id):
+    exp = get_object_or_404(Experimento, id=id)
+    return render(request, 'analise_exploratoria/experimento_detalhe.html', {'exp': exp})
+
+
+def editar_experimento(request, id):
+    exp = get_object_or_404(Experimento, id=id)
+    if request.method == 'POST':
+        exp.nome      = request.POST.get('nome')
+        exp.descricao = request.POST.get('descricao', '')
+        exp.obs       = request.POST.get('obs', '')
+        exp.save()
+        messages.success(request, 'Experimento atualizado com sucesso.')
+        return redirect('analise_exploratoria:listar_experimentos')
+    return render(request, 'analise_exploratoria/experimento_form.html', {'acao': 'Editar', 'exp': exp})
+
+
+def excluir_experimento(request, id):
+    exp = get_object_or_404(Experimento, id=id)
+    if request.method == 'POST':
+        exp.delete()
+        messages.success(request, 'Experimento excluído com sucesso.')
+        return redirect('analise_exploratoria:listar_experimentos')
+    return render(request, 'analise_exploratoria/experimento_excluir.html', {'exp': exp})
+# Fim - CRUD Experimento
+
+
+# Início - Dashboard comparativo
+def dashboard(request):
+    experimentos = Experimento.objects.prefetch_related(
+        'treinamentos__avaliacao', 'anotacao', 'divisao', 'anonimizacoes'
+    ).all()
+
+    linhas = []
+    for exp in experimentos:
+        for treinamento in exp.treinamentos.all():
+            aval = getattr(treinamento, 'avaliacao', None)
+            anon = exp.anonimizacoes.order_by('-criado_em').first()
+            anot = getattr(exp, 'anotacao', None)
+            div  = getattr(exp, 'divisao', None)
+            linhas.append({
+                'exp_id':        exp.id,
+                'exp_nome':      exp.nome,
+                'modelo':        treinamento.nome_modelo,
+                'kappa':         anot.kappa if anot else None,
+                'total_treino':  div.total_treino if div else None,
+                'total_teste':   div.total_teste if div else None,
+                'f1_ner':        aval.f1_entity_micro if aval else None,
+                'coverage':      anon.coverage if anon else None,
+                'precision_anon': anon.precision_anon if anon else None,
+                'delta_f1':      anon.delta_f1 if anon else None,
+            })
+
+    # Gráfico Plotly — F1 NER por modelo e experimento
+    grafico_html = ''
+    if linhas:
+        modelos   = [l['modelo'] for l in linhas]
+        f1_values = [l['f1_ner'] or 0 for l in linhas]
+        nomes     = [f"[{l['exp_id']}] {l['exp_nome']}" for l in linhas]
+
+        fig = make_subplots(rows=1, cols=2,
+            subplot_titles=('F1 NER por Modelo', 'ΔF1 por Modelo (Utilidade)'))
+
+        fig.add_trace(go.Bar(
+            x=modelos, y=f1_values, name='F1 NER',
+            text=nomes, textposition='auto',
+            marker_color='steelblue',
+        ), row=1, col=1)
+
+        delta_values = [l['delta_f1'] or 0 for l in linhas]
+        cores = ['green' if v >= 0 else 'red' for v in delta_values]
+        fig.add_trace(go.Bar(
+            x=modelos, y=delta_values, name='ΔF1',
+            marker_color=cores,
+        ), row=1, col=2)
+
+        fig.update_layout(height=400, showlegend=False)
+        grafico_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+
+    return render(request, 'analise_exploratoria/dashboard.html', {
+        'linhas':       linhas,
+        'grafico_html': grafico_html,
+    })
+# Fim - Dashboard comparativo

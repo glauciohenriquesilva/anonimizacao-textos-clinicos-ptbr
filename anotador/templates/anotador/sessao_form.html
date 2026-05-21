@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Nova Sessão de Anotação{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-plus-circle me-2 text-primary"></i>Nova Sessão de Anotação
+</h4>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Nome da sessão</label>
+        <input type="text" name="nome" class="form-control" required
+               placeholder="Ex: Anotação piloto — 500 sentenças" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Descrição</label>
+        <textarea name="descricao" class="form-control" rows="2"></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Experimento vinculado</label>
+        <select name="experimento_id" class="form-select">
+          <option value="">— Nenhum —</option>
+          {% for exp in experimentos %}
+          <option value="{{ exp.id }}">#{{ exp.id }} — {{ exp.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Caminho do corpus.jsonl</label>
+        <input type="text" name="caminho_jsonl" class="form-control" required
+               placeholder="outputs/preprocessamento/corpus.jsonl" />
+        <div class="form-text">Arquivo gerado pelo Pré-processamento.</div>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check-lg me-1"></i>Criar Sessão
+        </button>
+        <a href="{% url 'anotador:listar_sessoes' %}" class="btn btn-outline-secondary">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

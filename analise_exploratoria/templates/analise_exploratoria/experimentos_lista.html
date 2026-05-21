@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Experimentos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">
+    <i class="bi bi-journal-text me-2 text-primary"></i>Experimentos
+  </h4>
+  <a href="{% url 'analise_exploratoria:novo_experimento' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Novo Experimento
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Nome</th>
+          <th>Descrição</th>
+          <th>Criado em</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for exp in experimentos %}
+        <tr>
+          <td class="text-muted">{{ exp.id }}</td>
+          <td><strong>{{ exp.nome }}</strong></td>
+          <td class="text-muted small">{{ exp.descricao|truncatechars:60 }}</td>
+          <td class="text-muted small">{{ exp.criado_em|date:"d/m/Y H:i" }}</td>
+          <td class="text-end">
+            <a href="{% url 'analise_exploratoria:detalhe_experimento' exp.id %}" class="btn btn-sm btn-outline-secondary me-1">
+              <i class="bi bi-eye"></i>
+            </a>
+            <a href="{% url 'analise_exploratoria:editar_experimento' exp.id %}" class="btn btn-sm btn-outline-primary me-1">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'analise_exploratoria:excluir_experimento' exp.id %}" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">Nenhum experimento cadastrado ainda.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

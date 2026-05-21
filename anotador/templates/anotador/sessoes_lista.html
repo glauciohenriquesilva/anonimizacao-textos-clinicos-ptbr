@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Sessões de Anotação{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">
+    <i class="bi bi-list-check me-2 text-primary"></i>Sessões de Anotação
+  </h4>
+  <a href="{% url 'anotador:nova_sessao' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Nova Sessão
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Nome</th>
+          <th>Experimento</th>
+          <th class="text-end">Sentenças</th>
+          <th class="text-end">Meu progresso</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sessao in sessoes %}
+        <tr>
+          <td class="text-muted">{{ sessao.id }}</td>
+          <td><strong>{{ sessao.nome }}</strong></td>
+          <td class="text-muted small">{{ sessao.experimento|default:"—" }}</td>
+          <td class="text-end">{{ sessao.progresso.total }}</td>
+          <td class="text-end">
+            {{ sessao.progresso.anotadas }}/{{ sessao.progresso.total }}
+            <span class="text-muted small">({{ sessao.progresso.pct }}%)</span>
+          </td>
+          <td>
+            {% if sessao.encerrada %}
+              <span class="badge bg-secondary">Encerrada</span>
+            {% elif sessao.progresso.pendentes == 0 %}
+              <span class="badge bg-success">Concluída</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">Em andamento</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'anotador:resumo_sessao' sessao.id %}" class="btn btn-sm btn-outline-secondary me-1">
+              <i class="bi bi-eye"></i>
+            </a>
+            <a href="{% url 'anotador:anotar' sessao.id %}" class="btn btn-sm btn-primary">
+              <i class="bi bi-pencil-square me-1"></i>Anotar
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">Nenhuma sessão criada ainda.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

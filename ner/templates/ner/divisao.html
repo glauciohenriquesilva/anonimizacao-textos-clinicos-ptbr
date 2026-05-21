@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}NER — Divisão{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-scissors me-2 text-primary"></i>Divisão Treino / Dev / Teste
+</h4>
+
+<div class="card mb-4">
+  <div class="card-header fw-semibold">2.2 Dividir corpus anotado (70% / 15% / 15%)</div>
+  <div class="card-body">
+    <p class="text-muted small">Usa o arquivo <code>corpus_anotado.conll</code> gerado na etapa de Anotação.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-play-fill me-1"></i>Executar divisão
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if verificacao %}
+<!-- Resultado da divisão -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Treino (70%)</div>
+        <div class="fs-3 fw-bold">{{ total_treino }}</div>
+        <div class="small text-muted">sentenças</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Dev (15%)</div>
+        <div class="fs-3 fw-bold">{{ total_dev }}</div>
+        <div class="small text-muted">sentenças</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Teste (15%)</div>
+        <div class="fs-3 fw-bold">{{ total_teste }}</div>
+        <div class="small text-muted">sentenças</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Verificação de distribuição -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">2.2.2 Verificação de distribuição</div>
+  <div class="card-body">
+    {% if verificacao.ok %}
+    <div class="alert alert-success">
+      <i class="bi bi-check-circle me-2"></i>Todas as entidades estão presentes em dev e teste.
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      Entidades ausentes em dev: <strong>{{ verificacao.ausentes_dev|join:", " }}</strong><br>
+      Entidades ausentes em teste: <strong>{{ verificacao.ausentes_teste|join:", " }}</strong>
+    </div>
+    {% endif %}
+
+    <table class="table table-sm table-hover mt-3">
+      <thead class="table-light">
+        <tr><th>Entidade</th><th class="text-end">Treino</th><th class="text-end">Dev</th><th class="text-end">Teste</th></tr>
+      </thead>
+      <tbody>
+        {% for entidade, total in verificacao.treino.items %}
+        <tr>
+          <td>{{ entidade }}</td>
+          <td class="text-end">{{ total }}</td>
+          <td class="text-end">{{ verificacao.dev|default_if_none:"-" }}</td>
+          <td class="text-end">{{ verificacao.teste|default_if_none:"-" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Downloads -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold"><i class="bi bi-download me-2"></i>Exportar splits</div>
+  <div class="card-body d-flex gap-2">
+    <a href="{% url 'ner:baixar_arquivo' 'train.conll' %}" class="btn btn-outline-success">train.conll</a>
+    <a href="{% url 'ner:baixar_arquivo' 'dev.conll' %}" class="btn btn-outline-primary">dev.conll</a>
+    <a href="{% url 'ner:baixar_arquivo' 'test.conll' %}" class="btn btn-outline-warning">test.conll</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Pré-processamento{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-funnel me-2 text-primary"></i>Pré-processamento de Textos Clínicos
+</h4>
+
+<!-- Formulário -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">Arquivo de prescrições</label>
+          <input type="file" name="arquivo_prescricoes" class="form-control" accept=".csv" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Arquivo de pareceres</label>
+          <input type="file" name="arquivo_pareceres" class="form-control" accept=".csv" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Amostra por tipo</label>
+          <input type="number" name="amostra" class="form-control" placeholder="Ex: 1000" min="1" />
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-play-fill me-1"></i>Executar
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if resultado %}
+
+<!-- Resultado -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-check-circle me-2 text-success"></i>Pré-processamento concluído
+  </div>
+  <div class="card-body">
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="card metric-card h-100">
+          <div class="card-body">
+            <div class="text-muted small">Documentos processados</div>
+            <div class="fs-3 fw-bold">{{ resultado.total_documentos }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card metric-card h-100">
+          <div class="card-body">
+            <div class="text-muted small">Sentenças geradas</div>
+            <div class="fs-3 fw-bold">{{ resultado.total_sentencas }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Downloads -->
+    <h6 class="mb-3">Exportar corpus</h6>
+    <div class="d-flex gap-2">
+      <a href="{% url 'preprocessamento:baixar_arquivo' 'conll' %}" class="btn btn-outline-success">
+        <i class="bi bi-download me-1"></i>corpus.conll — Doccano
+      </a>
+      <a href="{% url 'preprocessamento:baixar_arquivo' 'jsonl' %}" class="btn btn-outline-primary">
+        <i class="bi bi-download me-1"></i>corpus.jsonl — BERT
+      </a>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

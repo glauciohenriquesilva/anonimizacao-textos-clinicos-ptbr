@@ -97,4 +97,16 @@
 
 ---
 
+### 2026-05-21 — Colunas de data específica do documento ausentes no CSV real    #dados #preprocessamento
+
+**Contexto:** Implementação de `selecionar_colunas` no pré-processamento tentou acessar `dt_pre_med` (prescrições) e `dt_parecer` (pareceres), conforme especificado no CLAUDE.md.
+
+**Observação:** Essas colunas não existem nos arquivos CSV reais. Ambas as tabelas compartilham exatamente as mesmas colunas, diferindo apenas na coluna de texto (`ds_evolucao` vs `ds_parecer`). A única data disponível é `dt_atendimento`. Erro: `KeyError: "['dt_pre_med'] not in index"`.
+
+**Decisão:** Usar apenas `dt_atendimento` como referência temporal para ambos os tipos de documento. Remover `dt_pre_med` e `dt_parecer` da seleção de colunas.
+
+**Impacto metodológico:** A data de anonimização será baseada em `dt_atendimento`. Atualizar o CLAUDE.md para refletir o schema real confirmado.
+
+---
+
 <!-- PRÓXIMAS ENTRADAS ABAIXO -->

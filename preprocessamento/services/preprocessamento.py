@@ -11,20 +11,19 @@ from analise_exploratoria.services.exploracao import (
 # Início - 1) Pré-processamento - 1.1) Leitura do DataSet - 1.1.3) Seleção das colunas-alvo
 def selecionar_colunas(df_prescricoes, df_pareceres):
     # Seleciona apenas as colunas necessárias de cada DataFrame e renomeia
-    # o campo de texto para 'texto' e o campo de data do documento para 'dt_documento',
-    # assim os dois DataFrames ficam com a mesma estrutura e podem ser concatenados
-    presc = df_prescricoes[['cd_paciente', 'dt_atendimento', 'dt_pre_med', 'ds_evolucao']].copy()
-    presc = presc.rename(columns={'dt_pre_med': 'dt_documento', 'ds_evolucao': 'texto'})
+    # o campo de texto para 'texto', assim os dois ficam com a mesma estrutura
+    presc = df_prescricoes[['cd_paciente', 'dt_atendimento', 'ds_evolucao']].copy()
+    presc = presc.rename(columns={'ds_evolucao': 'texto'})
     presc['doc_type'] = 'prescricao'
 
-    par = df_pareceres[['cd_paciente', 'dt_atendimento', 'dt_parecer', 'ds_parecer']].copy()
-    par = par.rename(columns={'dt_parecer': 'dt_documento', 'ds_parecer': 'texto'})
+    par = df_pareceres[['cd_paciente', 'dt_atendimento', 'ds_parecer']].copy()
+    par = par.rename(columns={'ds_parecer': 'texto'})
     par['doc_type'] = 'parecer'
 
     # Junta os dois em um único DataFrame e reseta o índice
     df = pd.concat([presc, par], ignore_index=True)
     return df
-# Fim - 1) Pré-processamento - 1.1) Leitura do DataSet - 1.1.3) Seleção das colunas-alvo
+# Fim - 1) Pré-processamento - 1.1) Leitura do DataSet - 1.1.3
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.1) Normalização Unicode NFC
 def normalizar_unicode(texto):
@@ -280,3 +279,288 @@ def segmentar_documento(texto):
 
     return sentencas
 # Fim - 1) Pré-processamento - 1.3) Segmentação em Sentenças - Pipeline completo
+
+# Início - 1) Pré-processamento - 1.4) Tokenização - 1.4.1) Tokenização word-level (para CRF)
+def tokenizar_word_level(sentenca):
+    # Tokenização simples por regex para o modelo CRF.
+    # Critérios de design:
+    #   - Placeholders (__CPF__, __TELEFONE__ etc.) ficam como token único
+    #   - Compostos com hífen (anti-inflamatório, pós-operatório) ficam unidos
+    #   - Números decimais (1,5 / 37.8) ficam unidos com sua unidade (1,5mg / 37.8°C)
+    #   - Pontuação solta (vírgulas, parênteses, dois-pontos) é separada em token próprio
+
+    padrao = re.compile(
+        r'__\w+__'           # placeholders: __CPF__, __TELEFONE__, etc.
+        r'|\w+(?:[.,]\w+)*'  # palavras, decimais (1,5 / 37.8) e compostos (pós-op)
+        r'|[^\w\s]'          # pontuação avulsa (vírgula, ponto, parêntese, etc.)
+    )
+    return padrao.findall(sentenca)
+# Fim - 1) Pré-processamento - 1.4) Tokenização - 1.4.1) Tokenização word-level (para CRF)
+
+# Início - 1) Pré-processamento - 1.4) Tokenização - 1.4.2) Extração de features por token (para CRF)
+def extrair_features_token(tokens, i):
+    # Extração de features por token — cada token recebe um dicionário de features que o CRF usa para classificar.
+    # As features capturam características léxicas e contextuais: caixa alta (nomes de pacientes/medicamentos), 
+    # sufixos (indicam tipo da palavra), se é número/pontuação, se está na lista de abreviações, e os tokens 
+    # vizinhos (janela de contexto ±2).
+
+    # Gera o dicionário de features do token na posição i dentro da lista de tokens.
+    # O CRF usa esses features para decidir a label BIO de cada token.
+    token = tokens[i]
+
+    features = {
+        # O token em minúsculas — normaliza caixa para comparação
+        'token.lower': token.lower(),
+
+        # Sufixo de 2 e 3 caracteres — útil para detectar terminações (ex: -ção, -ite, -oma)
+        'token.suffix2': token[-2:],
+        'token.suffix3': token[-3:],
+
+        # Prefixo de 2 e 3 caracteres — útil para detectar inícios (ex: anti-, pós-)
+        'token.prefix2': token[:2],
+        'token.prefix3': token[:3],
+
+        # Se o token está totalmente em caixa alta (ex: DIPIRONA, ROSIANE)
+        'token.isupper': token.isupper(),
+
+        # Se o token começa com letra maiúscula (ex: João, Hospital)
+        'token.istitle': token.istitle(),
+
+        # Se o token é composto só de dígitos (ex: 120, 80)
+        'token.isdigit': token.isdigit(),
+
+        # Se o token está na lista de abreviações médicas conhecidas
+        'token.is_abrev': token.rstrip('.') in ABREVIACOES_MEDICAS,
+
+        # Se o token é um placeholder de PHI estruturado (__CPF__, __TELEFONE__, etc.)
+        'token.is_placeholder': token.startswith('__') and token.endswith('__'),
+
+        # Posição no documento: token é o primeiro da sentença?
+        'token.is_first': i == 0,
+
+        # Posição no documento: token é o último da sentença?
+        'token.is_last': i == len(tokens) - 1,
+    }
+
+    # Adiciona features do token anterior (contexto esquerdo)
+    if i > 0:
+        prev_token = tokens[i - 1]
+        features['prev.token.lower'] = prev_token.lower()
+        features['prev.token.isupper'] = prev_token.isupper()
+        features['prev.token.istitle'] = prev_token.istitle()
+    else:
+        # Marca o início de sentença com feature especial
+        features['BOS'] = True  # Beginning Of Sentence
+
+    # Adiciona features do token dois posições atrás (contexto esquerdo amplo)
+    if i > 1:
+        features['prev2.token.lower'] = tokens[i - 2].lower()
+
+    # Adiciona features do token seguinte (contexto direito)
+    if i < len(tokens) - 1:
+        next_token = tokens[i + 1]
+        features['next.token.lower'] = next_token.lower()
+        features['next.token.isupper'] = next_token.isupper()
+        features['next.token.istitle'] = next_token.istitle()
+    else:
+        # Marca o fim de sentença com feature especial
+        features['EOS'] = True  # End Of Sentence
+
+    # Adiciona features do token dois posições à frente (contexto direito amplo)
+    if i < len(tokens) - 2:
+        features['next2.token.lower'] = tokens[i + 2].lower()
+
+    return features
+
+
+def extrair_features_sentenca(tokens):
+    # Aplica extrair_features_token para cada posição da lista de tokens.
+    # Retorna uma lista de dicionários — formato esperado pelo sklearn-crfsuite.
+    return [extrair_features_token(tokens, i) for i in range(len(tokens))]
+# Fim - 1) Pré-processamento - 1.4) Tokenização - 1.4.2) Extração de features por token (para CRF)
+
+# Início - 1) Pré-processamento - 1.4) Tokenização - 1.4.3) Tokenização subword + alinhamento BIO (para BERT)
+def tokenizar_e_alinhar_bert(sentenca, labels_bio, tokenizer, max_length=512, stride=64):
+    # Tokeniza uma sentença com o tokenizer do HuggingFace e alinha as labels BIO
+    # com os subtokens gerados pelo WordPiece.
+    #
+    # Tokenização subword — usada pelos modelos BERT (BERTimbau, BioBERTpt, etc.).
+    # O BERT usa tokenização subword (WordPiece): uma palavra como "anticoagulante" pode virar ['anti', '##coag', '##ulante']. 
+    # Isso cria um problema para o formato BIO — é necessário alinhar as labels dos tokens word-level com os subword tokens, 
+    # atribuindo a label correta ao primeiro subtoken e O (ou -100 para ignorar na loss) para os demais.
+
+    # Parâmetros:
+    #   sentenca    : lista de tokens word-level (saída de tokenizar_word_level)
+    #   labels_bio  : lista de labels BIO alinhadas com sentenca (ex: ['O','B-PESSOA','I-PESSOA'])
+    #                 Pode ser None durante inferência (não há labels ainda)
+    #   tokenizer   : instância de AutoTokenizer do HuggingFace já carregada
+    #   max_length  : limite de tokens do modelo (512 para BERT clássico)
+    #   stride      : sobreposição entre janelas para documentos longos
+
+    # Tokeniza com alinhamento de palavras (is_split_into_words=True)
+    # truncation + stride garante que documentos > 512 tokens sejam cobertos por janelas sobrepostas
+    encoding = tokenizer(
+        sentenca,
+        is_split_into_words=True,       # entrada já é lista de tokens word-level
+        return_offsets_mapping=False,   # não precisamos dos offsets de caractere
+        truncation=True,
+        max_length=max_length,
+        stride=stride,
+        return_overflowing_tokens=True, # gera múltiplas janelas se o texto for longo
+        padding='max_length',           # preenche com [PAD] até max_length
+        return_tensors=None,            # retorna listas Python, não tensores
+    )
+
+    # Para cada janela gerada (chunk), alinha as labels com os subtokens
+    todas_labels = []
+    for chunk_idx in range(len(encoding['input_ids'])):
+        # word_ids() mapeia cada subtoken ao índice do token word-level original
+        # Retorna None para tokens especiais ([CLS], [SEP], [PAD])
+        word_ids = encoding.word_ids(batch_index=chunk_idx)
+
+        labels_alinhadas = []
+        palavra_anterior = None
+        for word_id in word_ids:
+            if word_id is None:
+                # Token especial ([CLS], [SEP], [PAD]) → -100 é ignorado na loss
+                labels_alinhadas.append(-100)
+            elif word_id != palavra_anterior:
+                # Primeiro subtoken da palavra → recebe a label real
+                if labels_bio is not None:
+                    labels_alinhadas.append(labels_bio[word_id])
+                else:
+                    labels_alinhadas.append(None)  # modo inferência: sem label
+                palavra_anterior = word_id
+            else:
+                # Subtoken continuação (##algo) → -100 para ignorar na loss
+                labels_alinhadas.append(-100)
+
+        todas_labels.append(labels_alinhadas)
+
+    return encoding, todas_labels
+# Fim - 1) Pré-processamento - 1.4) Tokenização - 1.4.3) Tokenização subword + alinhamento BIO (para BERT)
+
+# Início - 1) Pré-processamento - 1.5) Exportação do Corpus Pré-processado - 1.5.1) Exportação CoNLL
+def exportar_conll(lista_sentencas_tokens, caminho_saida):
+    # Exporta o corpus tokenizado no formato CoNLL para anotação no Doccano.
+    # Cada linha: token\tO  (label inicial O — sem entidade)
+    # Sentenças separadas por linha em branco.
+    #
+    # lista_sentencas_tokens: lista de listas de tokens
+    #   ex: [['Paciente', 'João', 'Silva', ',', '45', 'anos'], ['PA', ':', '120x80']]
+
+    with open(caminho_saida, 'w', encoding='utf-8') as f:
+        for tokens in lista_sentencas_tokens:
+            for token in tokens:
+                # Escreve token e label padrão O (Outside — nenhuma entidade)
+                f.write(f'{token}\tO\n')
+            # Linha em branco separa sentenças (padrão CoNLL)
+            f.write('\n')
+# Fim - 1) Pré-processamento - 1.5) Exportação do Corpus Pré-processado - 1.5.1) Exportação CoNLL
+
+# Início - 1) Pré-processamento - 1.5) Exportação do Corpus Pré-processado - 1.5.2) Exportação JSONL
+def exportar_jsonl(lista_documentos, caminho_saida):
+    # Exportação do Corpus Pré-processado — dois formatos de saída. Dois destinos:
+    #   - CoNLL → cada linha é token\tO (tab separado), sentenças separadas por linha em branco. 
+    #     Formato padrão para importar no Doccano e anotar manualmente.
+    #
+    #   - JSONL → cada linha é um JSON {doc_id, doc_type, tokens, labels}. 
+    #     Formato usado para treinar os modelos BERT diretamente.
+
+    # Exporta o corpus no formato JSONL para treinamento dos modelos BERT.
+    # Cada linha do arquivo é um JSON com os campos:
+    #   doc_id   : identificador único do documento
+    #   doc_type : 'prescricao' ou 'parecer'
+    #   tokens   : lista de tokens word-level da sentença
+    #   labels   : lista de labels BIO alinhadas (mesmo comprimento de tokens)
+    #              Inicialmente preenchida com 'O' — será substituída após anotação
+    #
+    # lista_documentos: lista de dicts com chaves doc_id, doc_type, sentencas_tokens
+    #   ex: [{'doc_id': 0, 'doc_type': 'prescricao', 'sentencas_tokens': [['Paciente', ...], ...]}]
+
+    import json
+
+    with open(caminho_saida, 'w', encoding='utf-8') as f:
+        for doc in lista_documentos:
+            for sentenca_tokens in doc['sentencas_tokens']:
+                registro = {
+                    'doc_id':   doc['doc_id'],
+                    'doc_type': doc['doc_type'],
+                    'tokens':   sentenca_tokens,
+                    # Labels inicialmente todas O — serão atualizadas após anotação no Doccano
+                    'labels':   ['O'] * len(sentenca_tokens),
+                }
+                # ensure_ascii=False preserva acentos no arquivo de saída
+                f.write(json.dumps(registro, ensure_ascii=False) + '\n')
+# Fim - 1) Pré-processamento - 1.5) Exportação do Corpus Pré-processado - 1.5.2) Exportação JSONL
+
+# Início - 1) Pré-processamento - Pipeline completo
+def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres, 
+                               caminho_conll, caminho_jsonl, amostra=None):
+    # Orquestra todas as etapas do pré-processamento sobre os dois arquivos CSV.
+    # Parâmetros:
+    #   arquivo_prescricoes : caminho ou objeto de arquivo do CSV de prescrições
+    #   arquivo_pareceres   : caminho ou objeto de arquivo do CSV de pareceres
+    #   caminho_conll       : caminho do arquivo .conll de saída (para anotação)
+    #   caminho_jsonl       : caminho do arquivo .jsonl de saída (para treinamento)
+    #   amostra             : se informado, limita o número de registros de cada tipo
+
+    # 1.1 — Leitura e seleção de colunas
+    df_prescricoes = ler_prescricoes(arquivo_prescricoes)
+    df_pareceres   = ler_pareceres(arquivo_pareceres)
+    df = selecionar_colunas(df_prescricoes, df_pareceres)
+
+    # Aplica amostragem se solicitado (útil no desenvolvimento com 1.000+1.000)
+    if amostra:
+            # Amostra separada por tipo para não perder o balanceamento
+            presc = df[df['doc_type'] == 'prescricao'].sample(
+                min(amostra, (df['doc_type'] == 'prescricao').sum()), random_state=42
+            )
+            par = df[df['doc_type'] == 'parecer'].sample(
+                min(amostra, (df['doc_type'] == 'parecer').sum()), random_state=42
+            )
+            df = pd.concat([presc, par], ignore_index=True)
+
+    # 1.2 + 1.3 + 1.4 — Normaliza, segmenta e tokeniza cada documento
+    lista_sentencas_tokens = []  # para exportar CoNLL (lista plana de sentenças)
+    lista_documentos = []        # para exportar JSONL (agrupado por documento)
+
+    for idx, linha in df.iterrows():
+        # 1.2 — Normalização textual
+        texto_normalizado = normalizar_texto(linha['texto'])
+
+        # 1.3 — Segmentação em sentenças
+        sentencas = segmentar_documento(texto_normalizado)
+
+        # 1.4.1 — Tokenização word-level de cada sentença
+        sentencas_tokens = [tokenizar_word_level(s) for s in sentencas]
+
+        # Descarta sentenças que ficaram vazias após tokenização
+        sentencas_tokens = [t for t in sentencas_tokens if t]
+
+        # Acumula para exportação CoNLL (todas as sentenças de todos os docs)
+        lista_sentencas_tokens.extend(sentencas_tokens)
+
+        # Acumula para exportação JSONL (um registro por documento)
+        lista_documentos.append({
+            'doc_id':          idx,
+            'doc_type':        linha['doc_type'],
+            'sentencas_tokens': sentencas_tokens,
+        })
+
+    # 1.5.1 — Exporta corpus no formato CoNLL (para anotação no Doccano)
+    exportar_conll(lista_sentencas_tokens, caminho_conll)
+
+    # 1.5.2 — Exporta corpus no formato JSONL (para treinamento BERT)
+    exportar_jsonl(lista_documentos, caminho_jsonl)
+
+    # Retorna um resumo da execução
+    total_sentencas = sum(len(d['sentencas_tokens']) for d in lista_documentos)
+    return {
+        'total_documentos': len(lista_documentos),
+        'total_sentencas':  total_sentencas,
+        'caminho_conll':    caminho_conll,
+        'caminho_jsonl':    caminho_jsonl,
+    }
+# Fim - 1) Pré-processamento - Pipeline completo
+

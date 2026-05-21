@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}NER — Anotação{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-pencil-square me-2 text-primary"></i>Anotação Gold Standard
+</h4>
+
+<!-- 2.1.1 Seleção da amostra -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">2.1.1 Selecionar amostra para anotação</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="acao" value="selecionar" />
+      <div class="row g-3 align-items-end">
+        <div class="col-md-7">
+          <label class="form-label">Caminho do corpus.jsonl</label>
+          <input type="text" name="caminho_jsonl" class="form-control"
+                 placeholder="outputs/preprocessamento/corpus.jsonl" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Nº de sentenças</label>
+          <input type="number" name="n_amostras" class="form-control" value="500" min="1" />
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-play-fill me-1"></i>Gerar
+          </button>
+        </div>
+      </div>
+    </form>
+    {% if amostra_gerada %}
+    <div class="alert alert-success mt-3">
+      <i class="bi bi-check-circle me-2"></i>
+      Amostra gerada com <strong>{{ total_amostra }}</strong> sentenças.
+      <a href="{% url 'ner:baixar_arquivo' 'amostra_anotacao.jsonl' %}" class="btn btn-sm btn-outline-success ms-3">
+        <i class="bi bi-download me-1"></i>Baixar amostra_anotacao.jsonl
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 2.1.7 Importação do Doccano -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">2.1.7 Importar corpus anotado do Doccano</div>
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="acao" value="importar" />
+      <div class="row g-3 align-items-end">
+        <div class="col-md-10">
+          <label class="form-label">Arquivo exportado do Doccano (.jsonl)</label>
+          <input type="file" name="arquivo_doccano" class="form-control" accept=".jsonl" />
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-upload me-1"></i>Importar
+          </button>
+        </div>
+      </div>
+    </form>
+    {% if importacao_ok %}
+    <div class="alert alert-success mt-3">
+      <i class="bi bi-check-circle me-2"></i>
+      Corpus anotado importado e convertido para CoNLL com sucesso.
+      <a href="{% url 'ner:baixar_arquivo' 'corpus_anotado.conll' %}" class="btn btn-sm btn-outline-success ms-3">
+        <i class="bi bi-download me-1"></i>Baixar corpus_anotado.conll
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

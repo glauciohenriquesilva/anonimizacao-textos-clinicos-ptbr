@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Comparativo{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-graph-up me-2 text-primary"></i>Dashboard Comparativo de Experimentos
+</h4>
+
+{% if grafico_html %}
+<!-- Gráficos Plotly -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Visão Geral — F1 NER e ΔF1 por Modelo</div>
+  <div class="card-body">
+    {{ grafico_html|safe }}
+  </div>
+</div>
+{% endif %}
+
+<!-- Tabela comparativa -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Tabela Comparativa — Todas as Dimensões TILD</div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Experimento</th>
+          <th>Modelo</th>
+          <th class="text-end">κ</th>
+          <th class="text-end">Treino</th>
+          <th class="text-end">Teste</th>
+          <th class="text-end">F1 NER</th>
+          <th class="text-end">Coverage</th>
+          <th class="text-end">Prec_anon</th>
+          <th class="text-end">ΔF1</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linha in linhas %}
+        <tr>
+          <td>
+            <a href="{% url 'analise_exploratoria:detalhe_experimento' linha.exp_id %}">
+              #{{ linha.exp_id }} {{ linha.exp_nome }}
+            </a>
+          </td>
+          <td><strong>{{ linha.modelo }}</strong></td>
+          <td class="text-end">{{ linha.kappa|default:"—" }}</td>
+          <td class="text-end">{{ linha.total_treino|default:"—" }}</td>
+          <td class="text-end">{{ linha.total_teste|default:"—" }}</td>
+          <td class="text-end"><strong>{{ linha.f1_ner|default:"—" }}</strong></td>
+          <td class="text-end">{{ linha.coverage|default:"—" }}</td>
+          <td class="text-end">{{ linha.precision_anon|default:"—" }}</td>
+          <td class="text-end">
+            {% if linha.delta_f1 %}
+              {% if linha.delta_f1 >= 0 %}
+                <span class="text-success">{{ linha.delta_f1 }}</span>
+              {% else %}
+                <span class="text-danger">{{ linha.delta_f1 }}</span>
+              {% endif %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-center text-muted py-4">
+            Nenhum experimento com dados completos ainda.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

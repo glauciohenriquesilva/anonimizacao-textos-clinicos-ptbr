@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Anonimização{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-shield-lock me-2 text-primary"></i>Anonimização / Desidentificação
+</h4>
+
+<!-- 3.1 Substituição por Marcadores -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">3.1 Substituição por Marcadores</div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">
+      A anonimização é executada automaticamente após o treinamento e avaliação do modelo NER.
+      Os spans PHI detectados são substituídos por marcadores do tipo <code>[PESSOA_1]</code>,
+      <code>[DATA_1]</code> etc. O <code>cd_paciente</code> é pseudonimizado via SHA-256.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-play-fill me-1"></i>Executar Anonimização
+      </button>
+    </form>
+    {% if em_desenvolvimento %}
+    <div class="alert alert-info mt-3">
+      <i class="bi bi-info-circle me-2"></i>
+      Esta etapa será executada após a conclusão do treinamento e avaliação dos modelos NER.
+      Complete as etapas anteriores primeiro.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Fluxo resumido -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Fluxo do Pipeline</div>
+  <div class="card-body">
+    <ol class="mb-0">
+      <li class="mb-2">
+        <strong>3.1.1</strong> Extração dos spans PHI detectados pelo modelo NER
+      </li>
+      <li class="mb-2">
+        <strong>3.1.2</strong> Ordenação reversa dos spans (de trás para frente)
+      </li>
+      <li class="mb-2">
+        <strong>3.1.3</strong> Substituição consistente — mesma entidade → mesmo <code>[TIPO_N]</code>
+      </li>
+      <li class="mb-2">
+        <strong>3.1.4</strong> Pseudonimização do <code>cd_paciente</code> → SHA-256 com salt
+      </li>
+      <li class="mb-2">
+        <strong>3.2</strong> Avaliação de Privacidade (Coverage, Precision_anon, Levenshtein)
+      </li>
+      <li class="mb-2">
+        <strong>3.3</strong> Avaliação de Utilidade (ΔF1 por entidade clínica)
+      </li>
+      <li>
+        <strong>3.4</strong> Consolidação — Tabela TILD + CSV + Gráficos
+      </li>
+    </ol>
+  </div>
+</div>
+{% endblock %}
