@@ -1,4 +1,5 @@
 import os
+import json
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -35,6 +36,14 @@ def listar_sessoes(request):
 
 
 # Início - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.1) Criar Sessão de Anotação
+# A anotação manual serve para criar o corpus gold standard
+#
+# O problema: os modelos de NER (CRF, BERTimbau, BioBERTpt, etc.) precisam aprender o que é PHI nos seus textos.
+# Para isso, alguém precisa mostrar para eles exemplos corretos antes — "nesse texto, essa palavra é PESSOA, essa é DATA, essa não é nada".
+#
+# Por que é contribuição científica: não existe corpus anotado de textos clínicos do sistema MV em PT-BR
+#
+# O corpus gold standard é o gabarito oficial do seu experimento.
 @login_required
 def nova_sessao(request):
     if request.method == 'POST':
@@ -42,6 +51,10 @@ def nova_sessao(request):
         descricao      = request.POST.get('descricao', '')
         experimento_id = request.POST.get('experimento_id')
         caminho_jsonl  = request.POST.get('caminho_jsonl')
+        n_amostras_raw = request.POST.get('n_amostras', '').strip()
+
+        # Converte n_amostras para inteiro se preenchido; None = carrega tudo
+        n_amostras = int(n_amostras_raw) if n_amostras_raw.isdigit() else None
 
         experimento = None
         if experimento_id:
@@ -53,13 +66,28 @@ def nova_sessao(request):
             experimento=experimento,
         )
 
-        # Carrega o corpus JSONL na sessão criando os registros Sentenca no banco
-        total = carregar_corpus_na_sessao(sessao, caminho_jsonl)
+        # Carrega o corpus JSONL na sessão com amostragem estratificada opcional
+        total = carregar_corpus_na_sessao(sessao, caminho_jsonl, n_amostras)
         messages.success(request, f'Sessão criada com {total} sentenças.')
         return redirect('anotador:resumo_sessao', sessao_id=sessao.id)
 
-    experimentos = Experimento.objects.all()
-    return render(request, 'anotador/sessao_form.html', {'experimentos': experimentos})
+    # Varre a pasta de outputs do pré-processamento em busca de arquivos .jsonl
+    outputs_dir = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), 'outputs', 'preprocessamento'
+    )
+    arquivos_jsonl = []
+    if os.path.isdir(outputs_dir):
+        arquivos_jsonl = [
+            os.path.join(outputs_dir, f)
+            for f in sorted(os.listdir(outputs_dir))
+            if f.endswith('.jsonl')
+        ]
+
+    experimentos = Experimento.objects.all().order_by('-criado_em')
+    return render(request, 'anotador/sessao_form.html', {
+        'experimentos':   experimentos,
+        'arquivos_jsonl': arquivos_jsonl,
+    })
 # Fim - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.1) Criar Sessão de Anotação
 
 
@@ -79,9 +107,15 @@ def resumo_sessao(request, sessao_id):
 
 # Início - A) Anotador Integrado - A.2) Anotação - A.2.3) Interface de Anotação
 @login_required
-def anotar(request, sessao_id):
-    sessao   = get_object_or_404(SessaoAnotacao, id=sessao_id)
-    sentenca = proxima_sentenca(sessao, request.user)
+def anotar(request, sessao_id, sentenca_id=None):
+    sessao = get_object_or_404(SessaoAnotacao, id=sessao_id)
+
+    if sentenca_id:
+        # Modo revisão: abre uma sentença específica pelo ID
+        sentenca = get_object_or_404(Sentenca, id=sentenca_id, sessao=sessao)
+    else:
+        # Modo normal: próxima sentença pendente
+        sentenca = proxima_sentenca(sessao, request.user)
 
     if not sentenca:
         messages.success(request, 'Você concluiu todas as sentenças desta sessão.')
@@ -92,11 +126,25 @@ def anotar(request, sessao_id):
     # Labels disponíveis para anotação (extraídas das choices do modelo)
     labels = [l[0] for l in AnotacaoToken.LABELS]
 
+    # Carrega anotações já salvas para esta sentença (para pré-preencher ao voltar)
+    anotacoes_salvas = {
+        a.posicao: a.label
+        for a in AnotacaoToken.objects.filter(sentenca=sentenca, anotador=request.user)
+    }
+
+    # Calcula a sentença anterior para o botão "Voltar"
+    sentenca_anterior = Sentenca.objects.filter(
+        sessao=sessao,
+        ordem__lt=sentenca.ordem,
+    ).order_by('-ordem').first()
+
     return render(request, 'anotador/anotar.html', {
-        'sessao':    sessao,
-        'sentenca':  sentenca,
-        'progresso': progresso,
-        'labels':    labels,
+        'sessao':            sessao,
+        'sentenca':          sentenca,
+        'progresso':         progresso,
+        'labels':            labels,
+        'anotacoes_salvas':  json.dumps(anotacoes_salvas),
+        'sentenca_anterior': sentenca_anterior,
     })
 # Fim - A) Anotador Integrado - A.2) Anotação - A.2.3) Interface de Anotação
 
@@ -105,7 +153,6 @@ def anotar(request, sessao_id):
 @login_required
 @require_POST
 def salvar_anotacao(request, sessao_id):
-    import json
     sessao   = get_object_or_404(SessaoAnotacao, id=sessao_id)
     dados    = json.loads(request.body)
     sentenca = get_object_or_404(Sentenca, id=dados['sentenca_id'], sessao=sessao)
@@ -140,7 +187,6 @@ def revisar(request, sessao_id):
 @login_required
 @require_POST
 def salvar_adjudicacao(request, sessao_id):
-    import json
     sessao   = get_object_or_404(SessaoAnotacao, id=sessao_id)
     dados    = json.loads(request.body)
     sentenca = get_object_or_404(Sentenca, id=dados['sentenca_id'], sessao=sessao)

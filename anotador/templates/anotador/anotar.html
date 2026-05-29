@@ -5,11 +5,10 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0">
-    <i class="bi bi-pencil-square me-2 text-primary"></i>Anotação
+    <i class="bi bi-pencil-square me-2 text-primary"></i>Anotação - Geração do corpus gold standard. O corpus gold standard é o gabarito oficial do experimento.
   </h4>
   <span class="text-muted small">
-    {{ progresso.anotadas }}/{{ progresso.total }} sentenças
-    ({{ progresso.pct }}%)
+    {{ progresso.anotadas }}/{{ progresso.total }} sentenças ({{ progresso.pct }}%)
   </span>
 </div>
 
@@ -64,6 +63,12 @@
   <button class="btn btn-outline-secondary" onclick="limparAnotacoes()">
     <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar
   </button>
+  {% if sentenca_anterior %}
+  <a href="{% url 'anotador:anotar_sentenca' sessao.id sentenca_anterior.id %}"
+     class="btn btn-outline-warning">
+    <i class="bi bi-arrow-left me-1"></i>Voltar à sentença anterior
+  </a>
+  {% endif %}
   <a href="{% url 'anotador:resumo_sessao' sessao.id %}" class="btn btn-outline-secondary">
     Voltar ao resumo
   </a>
@@ -72,10 +77,8 @@
 
 {% block scripts %}
 <script>
-  // Label atualmente selecionada pelo anotador
   let labelAtual = 'O';
 
-  // Cores por tipo de entidade para feedback visual
   const cores = {
     'O':             'bg-light text-dark',
     'B-PESSOA':      'bg-danger text-white',
@@ -94,11 +97,26 @@
     'I-INSTITUICAO': 'bg-dark text-white opacity-75',
   };
 
+  // Pré-carrega anotações já salvas no banco (para quando volta a uma sentença)
+  const anotacoesSalvas = {{ anotacoes_salvas|safe }};
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (Object.keys(anotacoesSalvas).length > 0) {
+      document.querySelectorAll('.token').forEach(el => {
+        const pos   = parseInt(el.dataset.posicao);
+        const label = anotacoesSalvas[pos];
+        if (label && label !== 'O') {
+          Object.values(cores).forEach(c => c.split(' ').forEach(cls => el.classList.remove(cls)));
+          (cores[label] || 'bg-light text-dark').split(' ').forEach(cls => el.classList.add(cls));
+          el.dataset.label = label;
+        }
+      });
+    }
+  });
+
   function selecionarLabel(label) {
     labelAtual = label;
     document.getElementById('label-atual').textContent = label;
-
-    // Destaca o botão da label selecionada
     document.querySelectorAll('.label-btn').forEach(btn => {
       btn.classList.remove('btn-primary');
       btn.classList.add('btn-outline-secondary');
@@ -111,33 +129,23 @@
   }
 
   function anotarToken(el) {
-    // Remove classes de cor anteriores e aplica a nova
-    Object.values(cores).forEach(c => {
-      c.split(' ').forEach(cls => el.classList.remove(cls));
-    });
-    const classesNovas = (cores[labelAtual] || 'bg-light text-dark').split(' ');
-    classesNovas.forEach(cls => el.classList.add(cls));
-
-    // Atualiza o data-label do token
+    Object.values(cores).forEach(c => c.split(' ').forEach(cls => el.classList.remove(cls)));
+    (cores[labelAtual] || 'bg-light text-dark').split(' ').forEach(cls => el.classList.add(cls));
     el.dataset.label = labelAtual;
   }
 
   function limparAnotacoes() {
     document.querySelectorAll('.token').forEach(el => {
-      Object.values(cores).forEach(c => {
-        c.split(' ').forEach(cls => el.classList.remove(cls));
-      });
+      Object.values(cores).forEach(c => c.split(' ').forEach(cls => el.classList.remove(cls)));
       'bg-light text-dark'.split(' ').forEach(cls => el.classList.add(cls));
       el.dataset.label = 'O';
     });
   }
 
   function salvarEProximo() {
-    // Coleta as labels de todos os tokens
     const tokens = document.querySelectorAll('.token');
     const labels = Array.from(tokens).map(t => t.dataset.label);
 
-    // Envia via AJAX para a view salvar_anotacao
     fetch("{% url 'anotador:salvar_anotacao' sessao.id %}", {
       method: 'POST',
       headers: {
@@ -151,10 +159,9 @@
     })
     .then(r => r.json())
     .then(data => {
-      if (data.status === 'ok') {
-        // Recarrega a página para carregar a próxima sentença
-        window.location.reload();
-      }
+        if (data.status === 'ok') {
+            window.location.href = "{% url 'anotador:anotar' sessao.id %}";
+        }
     });
   }
 </script>

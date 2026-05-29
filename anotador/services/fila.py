@@ -1,27 +1,55 @@
 import json
+import random
+from collections import defaultdict
 from anotador.models import SessaoAnotacao, Sentenca, AnotacaoToken
 
 
 # Início - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.2) Carregar Corpus JSONL
-def carregar_corpus_na_sessao(sessao, caminho_jsonl):
+def carregar_corpus_na_sessao(sessao, caminho_jsonl, n_amostras=None):
     # Lê o corpus.jsonl gerado pelo pré-processamento e popula a sessão
     # com as sentenças a serem anotadas.
-    # Cada linha do JSONL vira um registro Sentenca no banco.
+    # Se n_amostras for informado, faz amostragem estratificada por doc_type
+    # (metade prescrições, metade pareceres) antes de inserir no banco.
 
+    # Carrega todas as linhas do JSONL em memória
+    registros = []
     with open(caminho_jsonl, encoding='utf-8') as f:
-        ordem = 0
         for linha in f:
-            registro = json.loads(linha)
-            Sentenca.objects.create(
-                sessao   = sessao,
-                doc_id   = registro['doc_id'],
-                doc_type = registro['doc_type'],
-                ordem    = ordem,
-                tokens   = registro['tokens'],
-            )
-            ordem += 1
+            registros.append(json.loads(linha))
 
-    return ordem  # total de sentenças carregadas
+    # Amostragem estratificada por doc_type se n_amostras foi solicitado
+    if n_amostras and n_amostras < len(registros):
+        por_tipo = defaultdict(list)
+        for r in registros:
+            por_tipo[r['doc_type']].append(r)
+
+        tipos = list(por_tipo.keys())
+        por_tipo_qtd = n_amostras // len(tipos)  # divide igualmente entre os tipos
+        resto = n_amostras % len(tipos)          # sentenças extras para o primeiro tipo
+
+        selecionados = []
+        for i, tipo in enumerate(tipos):
+            qtd = por_tipo_qtd + (1 if i < resto else 0)
+            disponivel = por_tipo[tipo]
+            # Garante que não solicita mais do que existe para o tipo
+            qtd = min(qtd, len(disponivel))
+            selecionados.extend(random.sample(disponivel, qtd))
+
+        # Embaralha para misturar os tipos na fila de anotação
+        random.shuffle(selecionados)
+        registros = selecionados
+
+    # Insere as sentenças selecionadas no banco
+    for ordem, registro in enumerate(registros):
+        Sentenca.objects.create(
+            sessao   = sessao,
+            doc_id   = registro['doc_id'],
+            doc_type = registro['doc_type'],
+            ordem    = ordem,
+            tokens   = registro['tokens'],
+        )
+
+    return len(registros)  # total de sentenças carregadas
 # Fim - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.2) Carregar Corpus JSONL
 
 

@@ -11,6 +11,7 @@ urlpatterns = [
 
     # Anotação
     path('<int:sessao_id>/anotar/', views.anotar, name='anotar'),
+    path('<int:sessao_id>/anotar/<int:sentenca_id>/', views.anotar, name='anotar_sentenca'),
     path('<int:sessao_id>/salvar/', views.salvar_anotacao, name='salvar_anotacao'),
 
     # Adjudicação
