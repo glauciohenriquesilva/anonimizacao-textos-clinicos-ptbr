@@ -7,14 +7,27 @@
   <i class="bi bi-bar-chart me-2 text-primary"></i>Avaliação NER — Dimensão T do TILD
 </h4>
 
+{% if erro %}
+<div class="alert alert-danger">
+  <i class="bi bi-x-circle me-2"></i>{{ erro }}
+</div>
+{% endif %}
+
 <div class="card mb-4">
-  <div class="card-header fw-semibold">2.4 Avaliar modelo CRF no conjunto de teste</div>
+  <div class="card-header fw-semibold">2.4 Avaliar modelo no conjunto de teste</div>
   <div class="card-body">
-    <p class="text-muted small">
-      Usa <code>outputs/ner/crf_model.joblib</code> e <code>outputs/ner/test.conll</code>.
-    </p>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Modelo treinado (.joblib)</label>
+        <input type="file" name="arquivo_modelo" class="form-control" accept=".joblib" required />
+        <div class="form-text">Selecione o <code>crf_model.joblib</code> gerado no Treinamento.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Arquivo de teste (.conll)</label>
+        <input type="file" name="arquivo_conll" class="form-control" accept=".conll" required />
+        <div class="form-text">Selecione o <code>test.conll</code> gerado na Divisão.</div>
+      </div>
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-play-fill me-1"></i>Avaliar
       </button>
@@ -23,8 +36,6 @@
 </div>
 
 {% if f1_entity %}
-
-<!-- F1 geral -->
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <div class="card metric-card h-100">
@@ -55,7 +66,6 @@
   </div>
 </div>
 
-<!-- F1 por entidade -->
 <div class="card mb-4">
   <div class="card-header fw-semibold">2.4.3 F1 por tipo de entidade PHI</div>
   <div class="card-body">
@@ -84,7 +94,6 @@
   </div>
 </div>
 
-<!-- Tabela comparativa -->
 <div class="card mb-4">
   <div class="card-header fw-semibold">2.4.5 Tabela comparativa dos modelos</div>
   <div class="card-body">
@@ -102,8 +111,8 @@
         {% for linha in tabela %}
         <tr>
           <td><strong>{{ linha.Modelo }}</strong></td>
-          <td class="text-end">{{ linha.F1 Entity }}</td>
-          <td class="text-end">{{ linha.F1 Token }}</td>
+          <td class="text-end">{{ linha.F1_Entity }}</td>
+          <td class="text-end">{{ linha.F1_Token }}</td>
           <td class="text-end">{{ linha.Precision }}</td>
           <td class="text-end">{{ linha.Recall }}</td>
         </tr>
@@ -112,6 +121,5 @@
     </table>
   </div>
 </div>
-
 {% endif %}
 {% endblock %}

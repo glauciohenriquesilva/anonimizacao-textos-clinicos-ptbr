@@ -494,6 +494,126 @@ def exportar_jsonl(lista_documentos, caminho_saida):
                 f.write(json.dumps(registro, ensure_ascii=False) + '\n')
 # Fim - 1) Pré-processamento - 1.5) Exportação do Corpus Pré-processado - 1.5.2) Exportação JSONL
 
+# Início - 1) Pré-processamento - 1.5) Exportação - 1.5.3) Seleção Estratificada por PHI
+def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_entidade=None):
+    # Lê o corpus.jsonl completo, classifica cada sentença pelos tipos de PHI
+    # que provavelmente contém (via regex) e gera um subconjunto balanceado
+    # para anotação — corpus_anotacao.jsonl.
+    #
+    # cotas_por_entidade: dict com a quantidade mínima desejada por tipo de PHI.
+    #   Ex: {'CONTATO': 300, 'DOCUMENTO': 300, 'ENDERECO': 300,
+    #        'PESSOA': 300, 'INSTITUICAO': 300, 'DATA': 200, 'HORA': 100}
+    # Uma sentença pode cobrir múltiplas cotas simultaneamente.
+
+    import json
+    import random
+
+    if cotas_por_entidade is None:
+        cotas_por_entidade = {
+            'CONTATO':    300,
+            'DOCUMENTO':  300,
+            'ENDERECO':   300,
+            'PESSOA':     300,
+            'INSTITUICAO':300,
+            'DATA':       200,
+            'HORA':       100,
+        }
+
+    # Regex para detectar PHI provável em texto reconstruído dos tokens
+    # Nota: o texto já passou pela normalização — datas estão em ISO 8601,
+    # telefones/CPF/CEP/e-mail já estão como placeholders (__TELEFONE__ etc.)
+    detectores = {
+        'CONTATO':    re.compile(
+            r'__TELEFONE__|__EMAIL__', re.IGNORECASE
+        ),
+        'DOCUMENTO':  re.compile(
+            # RG: padrões como 1.234.567, 1.234.567-8 ou MG-12.345.678
+            r'\b[A-Z]{0,2}\d{1,2}[\.\-]\d{3}[\.\-]\d{3}[\-\.]?\w{0,2}\b'
+            # CNS: 15 dígitos seguidos
+            r'|\b\d{15}\b'
+            # CNH: padrão numérico de 11 dígitos (distinto de CPF por contexto)
+            r'|CNH|RG\s*:?\s*\d|CNS\s*:?\s*\d'
+        ),
+        'ENDERECO':   re.compile(
+            r'\b(RUA|AV\.?|AVENIDA|BAIRRO|TRAVESSA|ALAMEDA|RODOVIA|ESTRADA'
+            r'|VILA|DISTRITO|LOTEAMENTO)\b'
+            r'|__CEP__|[Nn][°º]\.?\s*\d+',
+            re.IGNORECASE
+        ),
+        'PESSOA':     re.compile(
+            # Títulos médicos/pessoais seguidos de nome
+            r'\b(DR\.?|DRA\.?|SR\.?|SRA\.?|PACIENTE|PT\.?|FAMILIAR|RESPONSAVEL'
+            r'|ACOMPANHANTE|FILHO|FILHA|ESPOSO|ESPOSA|MAE|PAI)\b'
+            # Sequência de 2+ palavras totalmente em maiúsculas (nomes em caixa alta)
+            r'|(?<!\w)[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÀÇ]{3,}(?:\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÀÇ]{2,}){1,}',
+            re.IGNORECASE
+        ),
+        'INSTITUICAO':re.compile(
+            r'\b(HOSPITAL|UPA|UPINHA|CLINICA|CLÍNICA|SANTA\s+CASA|UBS|CAPS'
+            r'|PRONTO.SOCORRO|MATERNIDADE|HEMOCENTRO|SAMU|CACON|HINSG|HESVV'
+            r'|HUCAM|HMRP|HMS|HRAS)\b',
+            re.IGNORECASE
+        ),
+        'DATA':       re.compile(
+            # Datas normalizadas para ISO 8601: YYYY-MM-DD
+            r'\b\d{4}-\d{2}-\d{2}\b'
+        ),
+        'HORA':       re.compile(
+            r'\b\d{2}:\d{2}\b'
+        ),
+    }
+
+    # Lê todas as sentenças do JSONL e classifica por PHI
+    registros = []
+    with open(caminho_jsonl, encoding='utf-8') as f:
+        for linha in f:
+            registro = json.loads(linha)
+            texto = ' '.join(registro['tokens'])
+            phi_detectados = set()
+            for tipo, regex in detectores.items():
+                if regex.search(texto):
+                    phi_detectados.add(tipo)
+            registro['_phi_detectados'] = list(phi_detectados)
+            registros.append(registro)
+
+    # Amostragem estratificada: para cada entidade, coleta até a cota mínima
+    # Sentenças sem PHI detectado entram em um pool geral para complementar
+    selecionados_ids = set()
+    random.seed(42)
+
+    for entidade, cota in cotas_por_entidade.items():
+        candidatos = [
+            i for i, r in enumerate(registros)
+            if entidade in r['_phi_detectados']
+        ]
+        random.shuffle(candidatos)
+        for i in candidatos[:cota]:
+            selecionados_ids.add(i)
+
+    # Exporta o subconjunto balanceado (sem o campo auxiliar _phi_detectados)
+    selecionados = [registros[i] for i in sorted(selecionados_ids)]
+    random.shuffle(selecionados)
+
+    with open(caminho_saida, 'w', encoding='utf-8') as f:
+        for registro in selecionados:
+            registro.pop('_phi_detectados', None)
+            f.write(json.dumps(registro, ensure_ascii=False) + '\n')
+
+    # Monta resumo da distribuição de PHI no corpus gerado
+    resumo_phi = {entidade: 0 for entidade in cotas_por_entidade}
+    for registro in selecionados:
+        texto = ' '.join(registro['tokens'])
+        for entidade, regex in detectores.items():
+            if regex.search(texto):
+                resumo_phi[entidade] += 1
+
+    return {
+        'total_selecionadas': len(selecionados),
+        'caminho_saida':      caminho_saida,
+        'distribuicao_phi':   resumo_phi,
+    }
+# Fim - 1) Pré-processamento - 1.5) Exportação - 1.5.3) Seleção Estratificada por PHI
+
 # Início - 1) Pré-processamento - Pipeline completo
 def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres, 
                                caminho_conll, caminho_jsonl, amostra=None):
@@ -554,13 +674,19 @@ def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres,
     # 1.5.2 — Exporta corpus no formato JSONL (para treinamento BERT)
     exportar_jsonl(lista_documentos, caminho_jsonl)
 
+    # 1.5.3 — Gera subconjunto balanceado por PHI para anotação
+    caminho_anotacao = caminho_jsonl.replace('.jsonl', '_anotacao.jsonl')
+    resultado_selecao = selecionar_estratificado_por_phi(caminho_jsonl, caminho_anotacao)
+
     # Retorna um resumo da execução
     total_sentencas = sum(len(d['sentencas_tokens']) for d in lista_documentos)
     return {
-        'total_documentos': len(lista_documentos),
-        'total_sentencas':  total_sentencas,
-        'caminho_conll':    caminho_conll,
-        'caminho_jsonl':    caminho_jsonl,
+        'total_documentos':   len(lista_documentos),
+        'total_sentencas':    total_sentencas,
+        'caminho_conll':      caminho_conll,
+        'caminho_jsonl':      caminho_jsonl,
+        'caminho_anotacao':   caminho_anotacao,
+        'selecao_phi':        resultado_selecao,
     }
 # Fim - 1) Pré-processamento - Pipeline completo
 

@@ -1,6 +1,7 @@
 import os
 import time
-import joblib
+import json
+from collections import Counter
 from django.shortcuts import render
 from django.http import FileResponse, Http404
 
@@ -27,18 +28,32 @@ from .models import (
 )
 
 OUTPUTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs', 'ner')
+BASE_DIR    = os.path.dirname(os.path.dirname(__file__))
+
+
+def _varrer_arquivos(extensao, *subpastas):
+    """Varre as subpastas de outputs em busca de arquivos com a extensão informada."""
+    arquivos = []
+    for pasta in subpastas:
+        caminho = os.path.join(BASE_DIR, 'outputs', pasta)
+        if os.path.isdir(caminho):
+            for f in sorted(os.listdir(caminho)):
+                if f.endswith(extensao):
+                    arquivos.append(os.path.join(caminho, f))
+    return arquivos
 
 
 # Início - 2) NER - Interface Django - Anotação
 def anotacao(request):
     contexto = {}
 
+    contexto['arquivos_jsonl'] = _varrer_arquivos('.jsonl', 'preprocessamento', 'ner')
+
     if request.method == 'POST':
         acao = request.POST.get('acao')
         os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
         if acao == 'selecionar':
-            import json
             caminho_jsonl = request.POST.get('caminho_jsonl')
             n_amostras    = int(request.POST.get('n_amostras', 500))
             amostra       = selecionar_amostra_anotacao(caminho_jsonl, n_amostras)
@@ -48,11 +63,7 @@ def anotacao(request):
                 for registro in amostra:
                     f.write(json.dumps(registro, ensure_ascii=False) + '\n')
 
-            # Salva no banco
-            ExecucaoAnotacao.objects.create(
-                total_sentencas_amostra=len(amostra),
-            )
-
+            ExecucaoAnotacao.objects.create(total_sentencas_amostra=len(amostra))
             contexto['amostra_gerada'] = True
             contexto['total_amostra']  = len(amostra)
 
@@ -61,16 +72,13 @@ def anotacao(request):
             caminho_conll   = os.path.join(OUTPUTS_DIR, 'corpus_anotado.conll')
             converter_doccano_para_conll(arquivo_doccano, caminho_conll)
 
-            # Conta sentenças do CoNLL gerado
             tokens, labels = ler_conll(caminho_conll)
-            from collections import Counter
             dist = Counter(
                 label.split('-')[1]
                 for sentenca in labels for label in sentenca
                 if label != 'O'
             )
 
-            # Atualiza o registro de anotação mais recente
             execucao = ExecucaoAnotacao.objects.order_by('-criado_em').first()
             if execucao:
                 execucao.total_sentencas_anotadas    = len(tokens)
@@ -89,13 +97,23 @@ def divisao(request):
     contexto = {}
 
     if request.method == 'POST':
+        arquivo = request.FILES.get('arquivo_conll')
+
+        if not arquivo:
+            contexto['erro'] = 'Selecione um arquivo CoNLL antes de executar.'
+            return render(request, 'ner/divisao.html', contexto)
+
+        # Salva o arquivo enviado em outputs/ner/ antes de processar
         os.makedirs(OUTPUTS_DIR, exist_ok=True)
         caminho_conll = os.path.join(OUTPUTS_DIR, 'corpus_anotado.conll')
+        with open(caminho_conll, 'wb') as f:
+            for chunk in arquivo.chunks():
+                f.write(chunk)
+
         treino, dev, teste = dividir_corpus(caminho_conll)
         verificacao        = verificar_distribuicao(treino, dev, teste)
         caminhos           = exportar_splits_conll(treino, dev, teste, OUTPUTS_DIR)
 
-        # Salva no banco
         ExecucaoDivisao.objects.create(
             total_treino        = len(treino),
             total_dev           = len(dev),
@@ -124,21 +142,31 @@ def treinamento(request):
     contexto = {}
 
     if request.method == 'POST':
+        arquivo = request.FILES.get('arquivo_conll')
+
+        if not arquivo:
+            contexto['erro'] = 'Selecione o arquivo train.conll antes de executar.'
+            return render(request, 'ner/treinamento.html', contexto)
+
+        # Salva o arquivo de treino enviado em outputs/ner/
         os.makedirs(OUTPUTS_DIR, exist_ok=True)
         caminho_train  = os.path.join(OUTPUTS_DIR, 'train.conll')
         caminho_modelo = os.path.join(OUTPUTS_DIR, 'crf_model.joblib')
+
+        with open(caminho_train, 'wb') as f:
+            for chunk in arquivo.chunks():
+                f.write(chunk)
 
         inicio = time.time()
         crf    = treinar_crf(caminho_train, caminho_modelo)
         tempo  = round(time.time() - inicio, 2)
 
-        # Salva no banco
         ExecucaoTreinamento.objects.create(
-            nome_modelo          = 'CRF',
-            hiperparametros_json = {'c1': 0.1, 'c2': 0.1, 'max_iterations': 100},
+            nome_modelo           = 'CRF',
+            hiperparametros_json  = {'c1': 0.1, 'c2': 0.1, 'max_iterations': 100},
             tempo_treinamento_seg = tempo,
-            classes_json         = list(crf.classes_),
-            caminho_modelo       = caminho_modelo,
+            classes_json          = list(crf.classes_),
+            caminho_modelo        = caminho_modelo,
         )
 
         contexto['treinamento_ok'] = True
@@ -148,14 +176,32 @@ def treinamento(request):
     return render(request, 'ner/treinamento.html', contexto)
 # Fim - 2) NER - Interface Django - Treinamento CRF
 
-
 # Início - 2) NER - Interface Django - Avaliação
 def avaliacao(request):
     contexto = {}
 
     if request.method == 'POST':
-        caminho_modelo = os.path.join(OUTPUTS_DIR, 'crf_model.joblib')
-        caminho_teste  = os.path.join(OUTPUTS_DIR, 'test.conll')
+        import numpy as np
+
+        arquivo_teste  = request.FILES.get('arquivo_conll')
+        arquivo_modelo = request.FILES.get('arquivo_modelo')
+
+        if not arquivo_teste or not arquivo_modelo:
+            contexto['erro'] = 'Selecione o modelo (.joblib) e o arquivo de teste (.conll).'
+            return render(request, 'ner/avaliacao.html', contexto)
+
+        # Salva os arquivos enviados em outputs/ner/
+        os.makedirs(OUTPUTS_DIR, exist_ok=True)
+        caminho_teste  = os.path.join(OUTPUTS_DIR, 'test_eval.conll')
+        caminho_modelo = os.path.join(OUTPUTS_DIR, 'crf_model_eval.joblib')
+
+        with open(caminho_teste, 'wb') as f:
+            for chunk in arquivo_teste.chunks():
+                f.write(chunk)
+
+        with open(caminho_modelo, 'wb') as f:
+            for chunk in arquivo_modelo.chunks():
+                f.write(chunk)
 
         y_real, y_pred  = prever_crf(caminho_modelo, caminho_teste)
         f1_entity       = calcular_f1_entity_level(y_real, y_pred)
@@ -163,34 +209,55 @@ def avaliacao(request):
         f1_token        = calcular_f1_token_level(y_real, y_pred)
 
         resultados = {'CRF': {
-            'f1_micro': f1_entity['f1_micro'],
-            'f1_macro': f1_token['f1_macro'],
+            'f1_micro':  f1_entity['f1_micro'],
+            'f1_macro':  f1_token['f1_macro'],
+            'precision': f1_entity.get('precision', '-'),
+            'recall':    f1_entity.get('recall', '-'),
         }}
         tabela = gerar_tabela_comparativa(resultados)
 
-        # Salva no banco ligado ao treinamento CRF mais recente
-        treinamento = ExecucaoTreinamento.objects.filter(
+        # Converte valores numpy para tipos nativos Python — necessário para JSONField
+        def converter_numpy(obj):
+            # Percorre recursivamente dicts e listas convertendo int64/float64
+            if isinstance(obj, dict):
+                return {k: converter_numpy(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [converter_numpy(i) for i in obj]
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            return obj
+
+        f1_por_entidade_limpo   = converter_numpy(f1_por_entidade)
+        relatorio_limpo         = converter_numpy(f1_entity['relatorio'])
+        f1_entity_micro_limpo   = float(f1_entity['f1_micro'])
+        f1_token_macro_limpo    = float(f1_token['f1_macro'])
+        f1_token_weighted_limpo = float(f1_token['f1_weighted'])
+
+        treinamento_obj = ExecucaoTreinamento.objects.filter(
             nome_modelo='CRF'
         ).order_by('-criado_em').first()
 
-        if treinamento:
-            ExecucaoAvaliacao.objects.create(
-                treinamento          = treinamento,
-                f1_entity_micro      = f1_entity['f1_micro'],
-                f1_por_entidade_json = f1_por_entidade,
-                f1_token_macro       = f1_token['f1_macro'],
-                f1_token_weighted    = f1_token['f1_weighted'],
-                relatorio_json       = f1_entity['relatorio'],
+        if treinamento_obj:
+            ExecucaoAvaliacao.objects.update_or_create(
+                treinamento = treinamento_obj,
+                defaults={
+                    'f1_entity_micro':      f1_entity_micro_limpo,
+                    'f1_por_entidade_json': f1_por_entidade_limpo,
+                    'f1_token_macro':       f1_token_macro_limpo,
+                    'f1_token_weighted':    f1_token_weighted_limpo,
+                    'relatorio_json':       relatorio_limpo,
+                }
             )
 
         contexto['f1_entity']       = f1_entity
-        contexto['f1_por_entidade'] = f1_por_entidade
+        contexto['f1_por_entidade'] = f1_por_entidade_limpo
         contexto['f1_token']        = f1_token
-        contexto['tabela']          = tabela.to_dict(orient='records')
+        contexto['tabela']          = converter_numpy(tabela.to_dict(orient='records'))
 
     return render(request, 'ner/avaliacao.html', contexto)
 # Fim - 2) NER - Interface Django - Avaliação
-
 
 def baixar_arquivo(request, arquivo):
     permitidos = ['train.conll', 'dev.conll', 'test.conll',

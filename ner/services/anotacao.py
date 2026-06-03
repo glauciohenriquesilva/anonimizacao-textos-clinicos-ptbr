@@ -137,13 +137,16 @@ def converter_doccano_para_conll(caminho_jsonl_doccano, caminho_conll_saida):
 # Fim - 2) NER - 2.1) Anotação Gold Standard - 2.1.7) Exportação do corpus anotado final (CoNLL)
 
 # Início - 2) NER - 2.2) Divisão Treino/Dev/Teste - 2.2.1) Iterative Stratification (70/15/15)
-def dividir_corpus(caminho_conll_anotado):
-    # Divisão Treino / Dev / Teste com Iterative Stratification (70% / 15% / 15%)
+def dividir_corpus(caminho_conll_anotado, min_por_entidade_split=1):
+    # Divisão Treino / Dev / Teste com garantia de representação mínima por entidade.
+    # Estratégia:
+    #   1) Para cada entidade rara (poucos exemplos), reserva sentenças garantidas para dev e teste.
+    #   2) O restante é dividido aleatoriamente em 70/15/15.
+    # Isso evita que entidades com poucos exemplos (CONTATO, DOCUMENTO, ENDERECO)
+    # fiquem zeradas no dev e teste, o que impediria sua avaliação.
 
-    # Lê o CoNLL anotado e divide as sentenças em treino/dev/teste
-    # mantendo a proporção de cada entidade em cada split (Iterative Stratification).
-    # Retorna três listas de sentenças: (treino, dev, teste)
-    # Cada sentença é uma lista de tuplas (token, label).
+    import random
+    random.seed(42)
 
     # Lê o CoNLL e agrupa por sentença
     sentencas = []
@@ -152,34 +155,71 @@ def dividir_corpus(caminho_conll_anotado):
         for linha in f:
             linha = linha.rstrip('\n')
             if linha == '':
-                # Linha em branco = fim de sentença
                 if sentenca_atual:
                     sentencas.append(sentenca_atual)
                     sentenca_atual = []
             else:
                 partes = linha.split('\t')
-                sentenca_atual.append((partes[0], partes[1]))
-        # Captura última sentença se o arquivo não terminar com linha em branco
+                if len(partes) >= 2:
+                    # Linha válida: token TAB label
+                    sentenca_atual.append((partes[0], partes[1]))
+                # Linhas malformadas (sem tab) são ignoradas silenciosamente
+
         if sentenca_atual:
             sentencas.append(sentenca_atual)
 
-    # Extrai o conjunto de entidades presentes em cada sentença (para estratificação)
+    # Mapeia cada sentença para as entidades que ela contém
     def entidades_da_sentenca(sentenca):
         return set(
-            label.split('-')[1]          # extrai o tipo: B-PESSOA → PESSOA
+            label.split('-')[1]
             for _, label in sentenca
             if label != 'O'
         )
 
-    # Primeira divisão: 70% treino, 30% restante
-    treino, restante = train_test_split(
-        sentencas, test_size=0.30, random_state=42
-    )
+    # Agrupa índices de sentenças por entidade
+    sentencas_por_entidade = defaultdict(list)
+    for idx, sentenca in enumerate(sentencas):
+        for entidade in entidades_da_sentenca(sentenca):
+            sentencas_por_entidade[entidade].append(idx)
 
-    # Segunda divisão: 50% de restante → dev, 50% → teste (= 15% + 15% do total)
-    dev, teste = train_test_split(
-        restante, test_size=0.50, random_state=42
-    )
+    # Reserva mínima: para cada entidade, garante min_por_entidade_split sentenças no dev e teste
+    reservados_dev   = set()
+    reservados_teste = set()
+
+    for entidade, indices in sentencas_por_entidade.items():
+        embaralhados = indices.copy()
+        random.shuffle(embaralhados)
+
+        # Reserva para dev (ignora os já reservados para teste)
+        candidatos_dev = [i for i in embaralhados if i not in reservados_teste]
+        for i in candidatos_dev[:min_por_entidade_split]:
+            reservados_dev.add(i)
+
+        # Reserva para teste (ignora os já reservados para dev)
+        candidatos_teste = [i for i in embaralhados if i not in reservados_dev]
+        for i in candidatos_teste[:min_por_entidade_split]:
+            reservados_teste.add(i)
+
+    # Sentenças livres (não reservadas) são divididas 70/15/15
+    indices_livres = [
+        i for i in range(len(sentencas))
+        if i not in reservados_dev and i not in reservados_teste
+    ]
+    random.shuffle(indices_livres)
+
+    total_livre = len(indices_livres)
+    n_dev_extra   = max(0, round(total_livre * 0.15) - len(reservados_dev))
+    n_teste_extra = max(0, round(total_livre * 0.15) - len(reservados_teste))
+
+    # Distribui os livres: primeiro enchendo dev e teste, o resto vai para treino
+    dev_extra   = indices_livres[:n_dev_extra]
+    teste_extra = indices_livres[n_dev_extra:n_dev_extra + n_teste_extra]
+    treino_idx  = indices_livres[n_dev_extra + n_teste_extra:]
+
+    # Monta os splits finais
+    treino = [sentencas[i] for i in treino_idx]
+    dev    = [sentencas[i] for i in sorted(reservados_dev)   + dev_extra]
+    teste  = [sentencas[i] for i in sorted(reservados_teste) + teste_extra]
 
     return treino, dev, teste
 # Fim - 2) NER - 2.2) Divisão Treino/Dev/Teste - 2.2.1) Iterative Stratification (70/15/15)

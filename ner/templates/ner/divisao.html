@@ -7,12 +7,22 @@
   <i class="bi bi-scissors me-2 text-primary"></i>Divisão Treino / Dev / Teste
 </h4>
 
+{% if erro %}
+<div class="alert alert-danger">
+  <i class="bi bi-x-circle me-2"></i>{{ erro }}
+</div>
+{% endif %}
+
 <div class="card mb-4">
   <div class="card-header fw-semibold">2.2 Dividir corpus anotado (70% / 15% / 15%)</div>
   <div class="card-body">
-    <p class="text-muted small">Usa o arquivo <code>corpus_anotado.conll</code> gerado na etapa de Anotação.</p>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Arquivo CoNLL anotado</label>
+        <input type="file" name="arquivo_conll" class="form-control" accept=".conll" required />
+        <div class="form-text">Selecione o arquivo exportado pelo Anotador (<code>corpus_anotado_sessao_X.conll</code>).</div>
+      </div>
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-play-fill me-1"></i>Executar divisão
       </button>
@@ -21,7 +31,6 @@
 </div>
 
 {% if verificacao %}
-<!-- Resultado da divisão -->
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <div class="card metric-card h-100">
@@ -52,7 +61,6 @@
   </div>
 </div>
 
-<!-- Verificação de distribuição -->
 <div class="card mb-4">
   <div class="card-header fw-semibold">2.2.2 Verificação de distribuição</div>
   <div class="card-body">
@@ -70,7 +78,12 @@
 
     <table class="table table-sm table-hover mt-3">
       <thead class="table-light">
-        <tr><th>Entidade</th><th class="text-end">Treino</th><th class="text-end">Dev</th><th class="text-end">Teste</th></tr>
+        <tr>
+          <th>Entidade</th>
+          <th class="text-end">Treino</th>
+          <th class="text-end">Dev</th>
+          <th class="text-end">Teste</th>
+        </tr>
       </thead>
       <tbody>
         {% for entidade, total in verificacao.treino.items %}
@@ -86,9 +99,10 @@
   </div>
 </div>
 
-<!-- Downloads -->
 <div class="card mb-4">
-  <div class="card-header fw-semibold"><i class="bi bi-download me-2"></i>Exportar splits</div>
+  <div class="card-header fw-semibold">
+    <i class="bi bi-download me-2"></i>Exportar splits
+  </div>
   <div class="card-body d-flex gap-2">
     <a href="{% url 'ner:baixar_arquivo' 'train.conll' %}" class="btn btn-outline-success">train.conll</a>
     <a href="{% url 'ner:baixar_arquivo' 'dev.conll' %}" class="btn btn-outline-primary">dev.conll</a>

@@ -7,16 +7,22 @@
   <i class="bi bi-cpu me-2 text-primary"></i>Treinamento dos Modelos
 </h4>
 
-<!-- CRF local -->
+{% if erro %}
+<div class="alert alert-danger">
+  <i class="bi bi-x-circle me-2"></i>{{ erro }}
+</div>
+{% endif %}
+
 <div class="card mb-4">
   <div class="card-header fw-semibold">2.3.1 CRF Baseline (local, CPU)</div>
   <div class="card-body">
-    <p class="text-muted small">
-      Usa o arquivo <code>train.conll</code> gerado na etapa de Divisão.
-      O modelo treinado é salvo em <code>outputs/ner/crf_model.joblib</code>.
-    </p>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Arquivo de treino (.conll)</label>
+        <input type="file" name="arquivo_conll" class="form-control" accept=".conll" required />
+        <div class="form-text">Selecione o <code>train.conll</code> gerado na etapa de Divisão.</div>
+      </div>
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-play-fill me-1"></i>Treinar CRF
       </button>
@@ -24,14 +30,13 @@
     {% if treinamento_ok %}
     <div class="alert alert-success mt-3">
       <i class="bi bi-check-circle me-2"></i>
-      Modelo CRF treinado com sucesso.
+      Modelo CRF treinado em <strong>{{ tempo }}s</strong>.
       Classes aprendidas: <strong>{{ classes|join:", " }}</strong>
     </div>
     {% endif %}
   </div>
 </div>
 
-<!-- Modelos BERT — informativo -->
 <div class="card mb-4">
   <div class="card-header fw-semibold">2.3.2 a 2.3.5 Modelos BERT (Google Colab GPU)</div>
   <div class="card-body">

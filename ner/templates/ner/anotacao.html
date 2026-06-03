@@ -16,12 +16,25 @@
       <input type="hidden" name="acao" value="selecionar" />
       <div class="row g-3 align-items-end">
         <div class="col-md-7">
-          <label class="form-label">Caminho do corpus.jsonl</label>
-          <input type="text" name="caminho_jsonl" class="form-control"
-                 placeholder="outputs/preprocessamento/corpus.jsonl" />
+          <label class="form-label fw-semibold">Arquivo corpus.jsonl</label>
+          {% if arquivos_jsonl %}
+            <select name="caminho_jsonl" class="form-select" required>
+              <option value="">— Selecione o arquivo —</option>
+              {% for arq in arquivos_jsonl %}
+              <option value="{{ arq }}">{{ arq|slice:"-60:" }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Arquivos encontrados em <code>outputs/preprocessamento/</code> e <code>outputs/ner/</code>.</div>
+          {% else %}
+            <input type="text" name="caminho_jsonl" class="form-control"
+                   placeholder="outputs/preprocessamento/corpus.jsonl" />
+            <div class="form-text text-warning">
+              <i class="bi bi-exclamation-triangle me-1"></i>Nenhum .jsonl encontrado. Execute o Pré-processamento primeiro.
+            </div>
+          {% endif %}
         </div>
         <div class="col-md-3">
-          <label class="form-label">Nº de sentenças</label>
+          <label class="form-label fw-semibold">Nº de sentenças</label>
           <input type="number" name="n_amostras" class="form-control" value="500" min="1" />
         </div>
         <div class="col-md-2">
@@ -45,14 +58,15 @@
 
 <!-- 2.1.7 Importação do Doccano -->
 <div class="card mb-4">
-  <div class="card-header fw-semibold">2.1.7 Importar corpus anotado do Doccano</div>
+  <div class="card-header fw-semibold">2.1.7 Importar corpus anotado externo</div>
   <div class="card-body">
+    <p class="text-muted small">Use esta opção apenas se o corpus foi anotado em ferramenta externa (ex: Doccano). Para o AnonClin Anotador, use o botão Exportar CoNLL na sessão de anotação.</p>
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       <input type="hidden" name="acao" value="importar" />
       <div class="row g-3 align-items-end">
         <div class="col-md-10">
-          <label class="form-label">Arquivo exportado do Doccano (.jsonl)</label>
+          <label class="form-label fw-semibold">Arquivo exportado do Doccano (.jsonl)</label>
           <input type="file" name="arquivo_doccano" class="form-control" accept=".jsonl" />
         </div>
         <div class="col-md-2">
@@ -64,8 +78,7 @@
     </form>
     {% if importacao_ok %}
     <div class="alert alert-success mt-3">
-      <i class="bi bi-check-circle me-2"></i>
-      Corpus anotado importado e convertido para CoNLL com sucesso.
+      <i class="bi bi-check-circle me-2"></i>Corpus importado e convertido para CoNLL com sucesso.
       <a href="{% url 'ner:baixar_arquivo' 'corpus_anotado.conll' %}" class="btn btn-sm btn-outline-success ms-3">
         <i class="bi bi-download me-1"></i>Baixar corpus_anotado.conll
       </a>

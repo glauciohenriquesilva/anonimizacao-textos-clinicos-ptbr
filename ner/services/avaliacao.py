@@ -72,11 +72,17 @@ def calcular_f1_entity_level(y_real, y_pred):
     # Calcula F1 micro-averaged no nível de entidade usando seqeval.
     # O seqeval avalia entidades completas (span-level), não token a token —
     # uma entidade só é correta se todos os seus tokens forem previstos corretamente.
-    relatorio = classification_report(y_real, y_pred, output_dict=True)
-    f1_micro  = f1_score(y_real, y_pred, average='micro')
+    from seqeval.metrics import precision_score, recall_score
+
+    relatorio  = classification_report(y_real, y_pred, output_dict=True)
+    f1_micro   = f1_score(y_real, y_pred, average='micro')
+    precision  = precision_score(y_real, y_pred, average='micro')
+    recall     = recall_score(y_real, y_pred, average='micro')
 
     return {
-        'f1_micro':  round(f1_micro, 4),
+        'f1_micro':  round(float(f1_micro), 4),
+        'precision': round(float(precision), 4),
+        'recall':    round(float(recall), 4),
         'relatorio': relatorio,
     }
 # Fim - 2) NER - 2.4) Avaliação NER - 2.4.2) F1 entity-level geral (seqeval, micro-avg)
@@ -141,15 +147,15 @@ def gerar_tabela_comparativa(resultados_modelos):
     for modelo, metricas in resultados_modelos.items():
         linhas.append({
             'Modelo':      modelo,
-            'F1 Entity':   metricas.get('f1_micro', '-'),
-            'F1 Token':    metricas.get('f1_macro', '-'),
+            'F1_Entity':   metricas.get('f1_micro', '-'),
+            'F1_Token':    metricas.get('f1_macro', '-'),
             'Precision':   metricas.get('precision', '-'),
             'Recall':      metricas.get('recall', '-'),
         })
 
     df = pd.DataFrame(linhas)
     # Ordena do melhor para o pior F1 entity-level
-    df = df.sort_values('F1 Entity', ascending=False).reset_index(drop=True)
+    df = df.sort_values('F1_Entity', ascending=False).reset_index(drop=True)
     return df
 # Fim - 2) NER - 2.4) Avaliação NER - 2.4.5) Tabela comparativa dos 5 modelos
 
