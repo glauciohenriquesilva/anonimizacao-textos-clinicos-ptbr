@@ -69,35 +69,50 @@ def colapsar_espacos(texto):
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.3) Colapso de espaços múltiplos e tabs
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4) Normalização de datas → ISO 8601
-def normalizar_data(match):
-    """Recebe um match de regex e retorna a data no formato ISO 8601 (YYYY-MM-DD)."""
-    p1, p2, p3 = match.group(1), match.group(2), match.group(3)
-    n1, n2, n3 = int(p1), int(p2), int(p3)
-
-    # Detecta o ano: campo com 4 dígitos ou campo com 2 dígitos (adiciona 2000)
-    if len(p3) == 4:
-        ano = n3
-        # Distingue dd/mm vs m/dd: se n2 > 12, é dia (formato americano m/dd/yyyy)
-        if n2 > 12:
-            dia, mes = n2, n1   # formato americano: m/dd/yyyy
-        else:
-            dia, mes = n1, n2   # formato brasileiro: dd/mm/yyyy
-    else:
-        # Formato dd/mm/yy
-        ano = 2000 + n3
-        dia, mes = n1, n2
-
-    try:
-        return f'{ano:04d}-{mes:02d}-{dia:02d}'
-    except ValueError:
-        return match.group(0)  # se a data for inválida, mantém o original
-
 def normalizar_datas_no_texto(texto):
     if not isinstance(texto, str):
         return ''
-    # Regex captura datas no formato d+/d+/dd ou d+/d+/dddd, com ou sem horário
-    padrao = re.compile(r'\b(\d{1,2})/(\d{1,2})/(\d{2,4})(?:\s+\d{2}:\d{2})?\b')
-    return padrao.sub(normalizar_data, texto)
+    # Grupo 4 captura o horário opcional para preservá-lo após a conversão da data
+    padrao = re.compile(r'\b(\d{1,2})/(\d{1,2})/(\d{2,4})(?:\s+(\d{2}:\d{2}))?\b')
+
+    def substituir(match):
+        p1, p2, p3 = match.group(1), match.group(2), match.group(3)
+        hora = match.group(4)  # None se não houver horário
+        n1, n2, n3 = int(p1), int(p2), int(p3)
+        if len(p3) == 4:
+            ano = n3
+            if n2 > 12:
+                dia, mes = n2, n1
+            else:
+                dia, mes = n1, n2
+        else:
+            ano = 2000 + n3
+            dia, mes = n1, n2
+        try:
+            data_iso = f'{ano:04d}-{mes:02d}-{dia:02d}'
+            return f'{data_iso} {hora}' if hora else data_iso
+        except (ValueError, OverflowError):
+            return match.group(0)
+
+    return padrao.sub(substituir, texto)
+
+def mascarar_datas_horas(texto):
+    """
+    Substitui datas ISO e horários por placeholders após a normalização.
+    Deve ser chamada DEPOIS de normalizar_datas_no_texto().
+    
+    Ordem importa: trata "2026-08-04 07:09" antes de tratar cada parte
+    separadamente, para não gerar "__DATA__ __HORA__" de forma errada.
+    """
+    if not isinstance(texto, str):
+        return ''
+    # Data com hora juntas: "2026-08-04 07:09" → "__DATA__ __HORA__"
+    texto = re.sub(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}\b', '__DATA__ __HORA__', texto)
+    # Data isolada: "2026-08-04" → "__DATA__"
+    texto = re.sub(r'\b\d{4}-\d{2}-\d{2}\b', '__DATA__', texto)
+    # Hora isolada: "07:09" → "__HORA__"
+    texto = re.sub(r'\b\d{2}:\d{2}\b', '__HORA__', texto)
+    return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4) Normalização de datas → ISO 8601
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.5) Mascaramento CPF → __CPF__
@@ -105,17 +120,20 @@ def mascarar_cpf(texto):
     # O CPF é um identificador pessoal sensível, e deve ser mascarado para proteger a privacidade dos pacientes. 
     # O mascaramento não anonimiza definitivamente o CPF, mas reduz o risco de exposição acidental e protege esses padrões 
     # de serem fragmentados pela tokenização ou confundidos com outros PHI. 
-    # O formato do CPF é bem definido, o que facilita a identificação e substituição por um token genérico como __CPF__.
-    # O CPF tem dois formatos comuns:
-    # - Formato com pontuação: 000.000.000-00
-    # - Formato sem pontuação: 11 dígitos seguidos (evita falsos positivos com números menores)
-
+    # O CPF tem três formatos observados no corpus:
+    # - Formato padrão com hífen:  000.000.000-00
+    # - Formato com ponto no lugar do hífen: 000.000.000.00
+    # - Formato sem pontuação (11 dígitos), apenas quando precedido do rótulo "CPF"
     if not isinstance(texto, str):
         return ''
-    # Formato com pontuação: 000.000.000-00
-    texto = re.sub(r'\b\d{3}\.\d{3}\.\d{3}-\d{2}\b', '__CPF__', texto)
-    # Formato sem pontuação: 11 dígitos seguidos (evita falsos positivos com números menores)
-    texto = re.sub(r'\b\d{11}\b', '__CPF__', texto)
+    # Formatos com pontuação: 000.000.000-00 e 000.000.000.00
+    texto = re.sub(r'\b\d{3}\.\d{3}\.\d{3}[-\.]\d{2}\b', '__CPF__', texto)
+    # Formato sem pontuação: apenas quando precedido do rótulo "CPF" (evita falsos positivos com CNS e prontuários)
+    texto = re.sub(
+        r'(?i)\bCPF\s*[:\-]?\s*(\b\d{11}\b)',
+        lambda m: m.group(0).replace(m.group(1), '__CPF__'),
+        texto,
+    )
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.5) Mascaramento CPF → __CPF__
 
@@ -125,21 +143,40 @@ def mascarar_telefone(texto):
     # O mascaramento evita que o tokenizador fragmente o número em vários tokens
     # e protege esse PHI de ser ignorado pelo modelo NER.
     # Formatos cobertos:
-    # - (27) 99999-9999  → celular com DDD formatado
-    # - (27) 9999-9999   → fixo com DDD formatado
-    # - 27999999999      → sem formatação, 11 dígitos
-    # - 9999-9999        → fixo sem DDD
+    # - (27) 99999-9999      → celular com DDD formatado
+    # - (27) 9999-9999       → fixo com DDD formatado
+    # - (27) 999826676       → DDD entre parênteses + 9 dígitos sem hífen
+    # - 27999999999          → sem formatação, 11 dígitos
+    # - 9999-9999            → fixo sem DDD
+    # - 27 9 9722 3137       → DDD + dígito 9 + número com espaços (formato fragmentado)
+    # - TEL 27 33767-7523    → prefixo TEL + DDD + número com hífen
+    # - TEL 27 33767 - 7523  → prefixo TEL + DDD + número com espaços ao redor do hífen
+    # - 27 992867927         → DDD + espaço + 9 dígitos sem hífen
+    # - 998387639            → celular sem DDD, 9 dígitos começando com 9
+    #   ATENÇÃO: pode conflitar com RG de 9 dígitos — risco baixo pois RG
+    #   geralmente aparece precedido do rótulo "RG" no texto clínico
 
     if not isinstance(texto, str):
         return ''
-    # Com DDD entre parênteses: (dd) 9999-9999 ou (dd) 99999-9999
-    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}-\d{4}', '__TELEFONE__', texto)
-    # Com DDD sem parênteses: dd9999-9999 ou dd99999-9999
-    texto = re.sub(r'\b\d{2}\s*\d{4,5}-\d{4}\b', '__TELEFONE__', texto)
+    # Com DDD entre parênteses e hífen: (dd) 9999-9999 ou (dd) 99999-9999
+    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\s*-\s*\d{4}', '__TELEFONE__', texto)
+    # Com DDD entre parênteses sem hífen: (dd) 999999999 ou (dd) 99999999
+    # Ex: (27) 999826676
+    texto = re.sub(r'\(\d{2}\)\s*\d{8,9}', '__TELEFONE__', texto)
+    # Formato fragmentado: DDD + espaço + 9 + espaço + 4 dígitos + espaço + 4 dígitos
+    # Ex: 27 9 9722 3137
+    texto = re.sub(r'\b\d{2}\s+9\s+\d{4}\s+\d{4}\b', '__TELEFONE__', texto)
+    # Com DDD sem parênteses e hífen: dd 9999-9999 ou dd 99999-9999
+    # Ex: 27 33767-7523, 27 33767 - 7523
+    texto = re.sub(r'\b\d{2}\s*\d{4,5}\s*-\s*\d{4}\b', '__TELEFONE__', texto)
+    # DDD + espaço + 9 dígitos sem hífen: 27 992867927
+    texto = re.sub(r'\b\d{2}\s+\d{9}\b', '__TELEFONE__', texto)
     # Sem formatação: 10 ou 11 dígitos seguidos (DDD + número)
     texto = re.sub(r'\b\d{10,11}\b', '__TELEFONE__', texto)
+    # Celular sem DDD: 9 dígitos começando com 9 (ex: 998387639)
+    texto = re.sub(r'\b9\d{8}\b', '__TELEFONE__', texto)
     # Fixo sem DDD: 9999-9999
-    texto = re.sub(r'\b\d{4}-\d{4}\b', '__TELEFONE__', texto)
+    texto = re.sub(r'\b\d{4}\s*-\s*\d{4}\b', '__TELEFONE__', texto)
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.6) Mascaramento telefone → __TELEFONE__
 
@@ -147,16 +184,26 @@ def mascarar_telefone(texto):
 def mascarar_cep(texto):
     # CEP identifica endereço do paciente, um PHI sensível.
     # Formatos cobertos:
-    # - 12345-678  → formato padrão com hífen
-    # - 12345678   → sem hífen (comum em formulários digitais)
-    # O \b evita falsos positivos dentro de números maiores.
+    # - 12345-678  → formato padrão com hífen (mascarado sempre)
+    # - 12345678   → sem hífen, apenas quando precedido de contexto de endereço
+    #                (CEP, ENDEREÇO, RUA, AV, BAIRRO, etc.) para evitar falsos
+    #                positivos com números de prontuário, CRM, matrícula, etc.
 
     if not isinstance(texto, str):
         return ''
-    # Formato com hífen: 00000-000
+
+    # Formato com hífen: 00000-000 — suficientemente específico, mascarar sempre
     texto = re.sub(r'\b\d{5}-\d{3}\b', '__CEP__', texto)
-    # Formato sem hífen: 00000000 (8 dígitos exatos)
-    texto = re.sub(r'\b\d{8}\b', '__CEP__', texto)
+
+    # Formato sem hífen: 00000000 — só mascarar quando há contexto de endereço próximo
+    texto = re.sub(
+        r'(?i)(?:CEP|ENDERE[CÇ]O|END\.?|RUA|AV\.?|AVENIDA|BAIRRO|LOGRADOURO)'
+        r'\s*[:\-]?\s*'
+        r'(\b\d{8}\b)',
+        lambda m: m.group(0).replace(m.group(1), '__CEP__'),
+        texto
+    )
+
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.7) Mascaramento CEP → __CEP__
 
@@ -189,6 +236,9 @@ def normalizar_texto(texto):
 
     # Detecta datas nos 4 formatos encontrados no dataset e converte para ISO 8601 (YYYY-MM-DD)
     texto = normalizar_datas_no_texto(texto)
+
+    # Substitui datas ISO (YYYY-MM-DD) e horários (HH:MM) por __DATA__ e __HORA__
+    texto = mascarar_datas_horas(texto)    
 
     # Substitui CPF (com ou sem pontuação) por __CPF__
     texto = mascarar_cpf(texto)
@@ -290,9 +340,11 @@ def tokenizar_word_level(sentenca):
     #   - Pontuação solta (vírgulas, parênteses, dois-pontos) é separada em token próprio
 
     padrao = re.compile(
-        r'__\w+__'           # placeholders: __CPF__, __TELEFONE__, etc.
-        r'|\w+(?:[.,]\w+)*'  # palavras, decimais (1,5 / 37.8) e compostos (pós-op)
-        r'|[^\w\s]'          # pontuação avulsa (vírgula, ponto, parêntese, etc.)
+        r'__\w+__'              # placeholders: __CPF__, __TELEFONE__, etc.
+        r'|\d{4}-\d{2}-\d{2}'  # datas ISO 8601: 2026-08-04 (token único)
+        r'|\d{2}:\d{2}'         # horários: 07:09 (token único)
+        r'|\w+(?:[.,]\w+)*'     # palavras, decimais (1,5 / 37.8) e compostos
+        r'|[^\w\s]'             # pontuação avulsa
     )
     return padrao.findall(sentenca)
 # Fim - 1) Pré-processamento - 1.4) Tokenização - 1.4.1) Tokenização word-level (para CRF)
@@ -495,7 +547,7 @@ def exportar_jsonl(lista_documentos, caminho_saida):
 # Fim - 1) Pré-processamento - 1.5) Exportação do Corpus Pré-processado - 1.5.2) Exportação JSONL
 
 # Início - 1) Pré-processamento - 1.5) Exportação - 1.5.3) Seleção Estratificada por PHI
-def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_entidade=None):
+def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_entidade=None, n_total=None):
     # Lê o corpus.jsonl completo, classifica cada sentença pelos tipos de PHI
     # que provavelmente contém (via regex) e gera um subconjunto balanceado
     # para anotação — corpus_anotacao.jsonl.
@@ -504,22 +556,26 @@ def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_ent
     #   Ex: {'CONTATO': 300, 'DOCUMENTO': 300, 'ENDERECO': 300,
     #        'PESSOA': 300, 'INSTITUICAO': 300, 'DATA': 200, 'HORA': 100}
     # Uma sentença pode cobrir múltiplas cotas simultaneamente.
+    #
+    # n_total: se informado, preenche o restante (após atingir as cotas PHI)
+    #   com sentenças aleatórias do corpus até atingir esse total.
+    #   Ex: n_total=5000 → ~1800 PHI-estratificadas + ~3200 aleatórias.
 
     import json
     import random
 
     if cotas_por_entidade is None:
         cotas_por_entidade = {
-            'CONTATO':    300,
-            'DOCUMENTO':  300,
-            'ENDERECO':   300,
-            'PESSOA':     300,
-            'INSTITUICAO':300,
-            'DATA':       200,
-            'HORA':       100,
+            'CONTATO':     300,
+            'DOCUMENTO':   300,
+            'ENDERECO':    300,
+            'PESSOA':      300,
+            'INSTITUICAO': 300,
+            'DATA':        200,
+            'HORA':        100,
         }
 
-    # Regex para detectar PHI provável em texto reconstruído dos tokens
+    # Regex para detectar PHI provável em texto reconstruído dos tokens.
     # Nota: o texto já passou pela normalização — datas estão em ISO 8601,
     # telefones/CPF/CEP/e-mail já estão como placeholders (__TELEFONE__ etc.)
     detectores = {
@@ -548,7 +604,7 @@ def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_ent
             r'|(?<!\w)[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÀÇ]{3,}(?:\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÀÇ]{2,}){1,}',
             re.IGNORECASE
         ),
-        'INSTITUICAO':re.compile(
+        'INSTITUICAO': re.compile(
             r'\b(HOSPITAL|UPA|UPINHA|CLINICA|CLÍNICA|SANTA\s+CASA|UBS|CAPS'
             r'|PRONTO.SOCORRO|MATERNIDADE|HEMOCENTRO|SAMU|CACON|HINSG|HESVV'
             r'|HUCAM|HMRP|HMS|HRAS)\b',
@@ -576,9 +632,22 @@ def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_ent
             registro['_phi_detectados'] = list(phi_detectados)
             registros.append(registro)
 
-    # Amostragem estratificada: para cada entidade, coleta até a cota mínima
-    # Sentenças sem PHI detectado entram em um pool geral para complementar
+    # Remove duplicatas por conteúdo de texto — sentenças idênticas em doc_ids
+    # diferentes são comuns no corpus clínico (templates repetidos entre documentos)
+    vistos = set()
+    registros_unicos = []
+    for r in registros:
+        texto = ' '.join(r['tokens'])
+        if texto not in vistos:
+            vistos.add(texto)
+            registros_unicos.append(r)
+    registros = registros_unicos
+
+    # Amostragem estratificada: para cada entidade, coleta até a cota mínima.
+    # Registra também quantos candidatos foram encontrados para alertar
+    # quando o corpus não tem sentenças suficientes para uma entidade.
     selecionados_ids = set()
+    relatorio_cotas = {}
     random.seed(42)
 
     for entidade, cota in cotas_por_entidade.items():
@@ -587,7 +656,24 @@ def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_ent
             if entidade in r['_phi_detectados']
         ]
         random.shuffle(candidatos)
-        for i in candidatos[:cota]:
+        selecionados_entidade = candidatos[:cota]
+        for i in selecionados_entidade:
+            selecionados_ids.add(i)
+
+        relatorio_cotas[entidade] = {
+            'candidatos':    len(candidatos),
+            'cota':          cota,
+            'selecionadas':  len(selecionados_entidade),
+            'cota_atingida': len(candidatos) >= cota,
+        }
+
+    # Se n_total informado, preenche o restante com sentenças aleatórias
+    # que ainda não foram selecionadas (independentemente de ter PHI ou não)
+    if n_total and len(selecionados_ids) < n_total:
+        restantes = [i for i in range(len(registros)) if i not in selecionados_ids]
+        random.shuffle(restantes)
+        faltam = n_total - len(selecionados_ids)
+        for i in restantes[:faltam]:
             selecionados_ids.add(i)
 
     # Exporta o subconjunto balanceado (sem o campo auxiliar _phi_detectados)
@@ -611,19 +697,22 @@ def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_ent
         'total_selecionadas': len(selecionados),
         'caminho_saida':      caminho_saida,
         'distribuicao_phi':   resumo_phi,
+        'relatorio_cotas':    relatorio_cotas,
     }
 # Fim - 1) Pré-processamento - 1.5) Exportação - 1.5.3) Seleção Estratificada por PHI
 
 # Início - 1) Pré-processamento - Pipeline completo
-def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres, 
-                               caminho_conll, caminho_jsonl, amostra=None):
+def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres,
+                               caminho_conll, caminho_jsonl, amostra=None, n_total_anotacao=None):
     # Orquestra todas as etapas do pré-processamento sobre os dois arquivos CSV.
     # Parâmetros:
-    #   arquivo_prescricoes : caminho ou objeto de arquivo do CSV de prescrições
-    #   arquivo_pareceres   : caminho ou objeto de arquivo do CSV de pareceres
-    #   caminho_conll       : caminho do arquivo .conll de saída (para anotação)
-    #   caminho_jsonl       : caminho do arquivo .jsonl de saída (para treinamento)
-    #   amostra             : se informado, limita o número de registros de cada tipo
+    #   arquivo_prescricoes   : caminho ou objeto de arquivo do CSV de prescrições
+    #   arquivo_pareceres     : caminho ou objeto de arquivo do CSV de pareceres
+    #   caminho_conll         : caminho do arquivo .conll de saída
+    #   caminho_jsonl         : caminho do arquivo .jsonl de saída (corpus completo)
+    #   amostra               : se informado, limita registros por tipo (dev)
+    #   n_total_anotacao      : total de sentenças para corpus_anotacao.jsonl
+    #                           (PHI-estratificadas + complemento aleatório)
 
     # 1.1 — Leitura e seleção de colunas
     df_prescricoes = ler_prescricoes(arquivo_prescricoes)
@@ -632,14 +721,13 @@ def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres,
 
     # Aplica amostragem se solicitado (útil no desenvolvimento com 1.000+1.000)
     if amostra:
-            # Amostra separada por tipo para não perder o balanceamento
-            presc = df[df['doc_type'] == 'prescricao'].sample(
-                min(amostra, (df['doc_type'] == 'prescricao').sum()), random_state=42
-            )
-            par = df[df['doc_type'] == 'parecer'].sample(
-                min(amostra, (df['doc_type'] == 'parecer').sum()), random_state=42
-            )
-            df = pd.concat([presc, par], ignore_index=True)
+        presc = df[df['doc_type'] == 'prescricao'].sample(
+            min(amostra, (df['doc_type'] == 'prescricao').sum()), random_state=42
+        )
+        par = df[df['doc_type'] == 'parecer'].sample(
+            min(amostra, (df['doc_type'] == 'parecer').sum()), random_state=42
+        )
+        df = pd.concat([presc, par], ignore_index=True)
 
     # 1.2 + 1.3 + 1.4 — Normaliza, segmenta e tokeniza cada documento
     lista_sentencas_tokens = []  # para exportar CoNLL (lista plana de sentenças)
@@ -661,32 +749,37 @@ def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres,
         # Acumula para exportação CoNLL (todas as sentenças de todos os docs)
         lista_sentencas_tokens.extend(sentencas_tokens)
 
-        # Acumula para exportação JSONL (um registro por documento)
+        # Acumula para exportação JSONL (um registro por documento com todas as sentenças)
         lista_documentos.append({
             'doc_id':          idx,
             'doc_type':        linha['doc_type'],
             'sentencas_tokens': sentencas_tokens,
         })
 
-    # 1.5.1 — Exporta corpus no formato CoNLL (para anotação no Doccano)
+    # 1.5.1 — Exporta corpus completo no formato CoNLL (para Doccano)
     exportar_conll(lista_sentencas_tokens, caminho_conll)
 
-    # 1.5.2 — Exporta corpus no formato JSONL (para treinamento BERT)
+    # 1.5.2 — Exporta corpus completo no formato JSONL (para BERT)
     exportar_jsonl(lista_documentos, caminho_jsonl)
 
-    # 1.5.3 — Gera subconjunto balanceado por PHI para anotação
-    caminho_anotacao = caminho_jsonl.replace('.jsonl', '_anotacao.jsonl')
-    resultado_selecao = selecionar_estratificado_por_phi(caminho_jsonl, caminho_anotacao)
+    # 1.5.3 — Gera corpus_anotacao.jsonl com seleção estratificada por PHI
+    caminho_anotacao = caminho_jsonl.replace('corpus.jsonl', 'corpus_anotacao.jsonl')
+    selecao_phi = selecionar_estratificado_por_phi(
+        caminho_jsonl=caminho_jsonl,
+        caminho_saida=caminho_anotacao,
+        n_total=n_total_anotacao,
+    )
 
-    # Retorna um resumo da execução
-    total_sentencas = sum(len(d['sentencas_tokens']) for d in lista_documentos)
+    total_sentencas = sum(len(doc['sentencas_tokens']) for doc in lista_documentos)
+
     return {
-        'total_documentos':   len(lista_documentos),
-        'total_sentencas':    total_sentencas,
-        'caminho_conll':      caminho_conll,
-        'caminho_jsonl':      caminho_jsonl,
-        'caminho_anotacao':   caminho_anotacao,
-        'selecao_phi':        resultado_selecao,
+        'total_documentos':    len(df),
+        'total_sentencas':     total_sentencas,
+        'total_prescricoes':   int((df['doc_type'] == 'prescricao').sum()),
+        'total_pareceres':     int((df['doc_type'] == 'parecer').sum()),
+        'caminho_conll':       caminho_conll,
+        'caminho_jsonl':       caminho_jsonl,
+        'caminho_anotacao':    caminho_anotacao,
+        'selecao_phi':         selecao_phi,
     }
 # Fim - 1) Pré-processamento - Pipeline completo
-

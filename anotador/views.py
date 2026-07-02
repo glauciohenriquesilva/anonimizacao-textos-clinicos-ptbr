@@ -34,6 +34,16 @@ def listar_sessoes(request):
     return render(request, 'anotador/sessoes_lista.html', {'sessoes': sessoes})
 # Fim - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.3) Listar Sessões e Progresso
 
+# Início - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.4) Excluir Sessão
+@login_required
+@require_POST
+def excluir_sessao(request, sessao_id):
+    sessao = get_object_or_404(SessaoAnotacao, id=sessao_id)
+    sessao.delete()  # cascade apaga Sentenca e AnotacaoToken
+    messages.success(request, f'Sessão "{sessao.nome}" excluída.')
+    return redirect('anotador:listar_sessoes')
+# Fim - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.4) Excluir Sessão
+
 
 # Início - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.1) Criar Sessão de Anotação
 # A anotação manual serve para criar o corpus gold standard
@@ -220,3 +230,4 @@ def exportar(request, sessao_id):
         filename=f'corpus_anotado_sessao_{sessao_id}.conll',
     )
 # Fim - A) Anotador Integrado - A.4) Exportação - A.4.1) Gerar CoNLL Final
+

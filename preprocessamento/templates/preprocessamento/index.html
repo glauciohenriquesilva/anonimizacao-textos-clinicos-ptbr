@@ -13,17 +13,21 @@
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="row g-3 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">Arquivo de prescrições</label>
           <input type="file" name="arquivo_prescricoes" class="form-control" accept=".csv" />
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">Arquivo de pareceres</label>
           <input type="file" name="arquivo_pareceres" class="form-control" accept=".csv" />
         </div>
         <div class="col-md-2">
           <label class="form-label">Amostra por tipo</label>
           <input type="number" name="amostra" class="form-control" placeholder="Ex: 1000" min="1" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Total p/ anotação</label>
+          <input type="number" name="n_total_anotacao" class="form-control" placeholder="Ex: 5000" min="1" />
         </div>
         <div class="col-md-2">
           <button type="submit" class="btn btn-primary w-100">
@@ -37,7 +41,7 @@
 
 {% if resultado %}
 
-<!-- Resultado -->
+<!-- Métricas gerais -->
 <div class="card mb-4">
   <div class="card-header fw-semibold">
     <i class="bi bi-check-circle me-2 text-success"></i>Pré-processamento concluído
@@ -60,20 +64,78 @@
           </div>
         </div>
       </div>
+      <div class="col-md-3">
+        <div class="card metric-card h-100">
+          <div class="card-body">
+            <div class="text-muted small">Para anotação (balanceado)</div>
+            <div class="fs-3 fw-bold">{{ resultado.selecao_phi.total_selecionadas }}</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Downloads -->
     <h6 class="mb-3">Exportar corpus</h6>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
       <a href="{% url 'preprocessamento:baixar_arquivo' 'conll' %}" class="btn btn-outline-success">
         <i class="bi bi-download me-1"></i>corpus.conll — Doccano
       </a>
       <a href="{% url 'preprocessamento:baixar_arquivo' 'jsonl' %}" class="btn btn-outline-primary">
         <i class="bi bi-download me-1"></i>corpus.jsonl — BERT
       </a>
+      <a href="{% url 'preprocessamento:baixar_arquivo' 'anotacao' %}" class="btn btn-outline-warning">
+        <i class="bi bi-download me-1"></i>corpus_anotacao.jsonl — Anotador
+      </a>
     </div>
   </div>
 </div>
+
+<!-- Relatório PHI -->
+{% if resultado.selecao_phi.relatorio_cotas %}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-shield-check me-2"></i>Relatório de Cobertura PHI
+    <span class="text-muted fw-normal small ms-2">Candidatos encontrados vs. cota mínima por entidade</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Entidade</th>
+          <th class="text-end">Candidatos no corpus</th>
+          <th class="text-end">Cota mínima</th>
+          <th class="text-end">Selecionadas</th>
+          <th class="text-center">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entidade, stats in resultado.selecao_phi.relatorio_cotas.items %}
+        <tr>
+          <td><code>{{ entidade }}</code></td>
+          <td class="text-end">{{ stats.candidatos }}</td>
+          <td class="text-end">{{ stats.cota }}</td>
+          <td class="text-end">{{ stats.selecionadas }}</td>
+          <td class="text-center">
+            {% if stats.cota_atingida %}
+              <span class="badge bg-success">✓ OK</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">⚠ Insuficiente</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if resultado.selecao_phi.relatorio_cotas %}
+  <div class="card-footer text-muted small">
+    Entidades com status <span class="badge bg-warning text-dark">⚠ Insuficiente</span>
+    indicam que o corpus não tem sentenças suficientes para atingir a cota mínima.
+    Adicione mais documentos ao CSV e reprocesse.
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 
 {% endif %}
 {% endblock %}

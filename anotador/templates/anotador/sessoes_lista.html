@@ -46,14 +46,23 @@
               <span class="badge bg-warning text-dark">Em andamento</span>
             {% endif %}
           </td>
-          <td class="text-end">
+
+            <td class="text-end">
             <a href="{% url 'anotador:resumo_sessao' sessao.id %}" class="btn btn-sm btn-outline-secondary me-1">
-              <i class="bi bi-eye"></i>
+                <i class="bi bi-eye"></i>
             </a>
-            <a href="{% url 'anotador:anotar' sessao.id %}" class="btn btn-sm btn-primary">
-              <i class="bi bi-pencil-square me-1"></i>Anotar
+            <a href="{% url 'anotador:anotar' sessao.id %}" class="btn btn-sm btn-primary me-1">
+                <i class="bi bi-pencil-square me-1"></i>Anotar
             </a>
-          </td>
+            <form method="post" action="{% url 'anotador:excluir_sessao' sessao.id %}"
+                    class="d-inline"
+                    onsubmit="return confirm('Excluir sessão \"{{ sessao.nome }}\"? Esta ação apaga todas as anotações.')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i>
+                </button>
+            </form>
+            </td>
         </tr>
         {% empty %}
         <tr>

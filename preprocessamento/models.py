@@ -36,6 +36,9 @@ class ExecucaoPreprocessamento(models.Model):
     caminho_conll   = models.CharField(max_length=500, blank=True, null=True)
     caminho_jsonl   = models.CharField(max_length=500, blank=True, null=True)
 
+    caminho_anotacao = models.CharField(max_length=500, blank=True, null=True)
+    selecao_phi      = models.JSONField(null=True, blank=True)    
+
     obs = models.TextField(blank=True, null=True)
 
     class Meta:

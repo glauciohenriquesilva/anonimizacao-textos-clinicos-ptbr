@@ -13,6 +13,7 @@ urlpatterns = [
     path('<int:sessao_id>/anotar/', views.anotar, name='anotar'),
     path('<int:sessao_id>/anotar/<int:sentenca_id>/', views.anotar, name='anotar_sentenca'),
     path('<int:sessao_id>/salvar/', views.salvar_anotacao, name='salvar_anotacao'),
+    path('<int:sessao_id>/excluir/', views.excluir_sessao, name='excluir_sessao'),
 
     # Adjudicação
     path('<int:sessao_id>/revisar/', views.revisar, name='revisar'),

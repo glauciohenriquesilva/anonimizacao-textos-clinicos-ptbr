@@ -61,19 +61,28 @@ def salvar_adjudicacao(sentenca, labels_adjudicadas):
 # Fim - A) Anotador Integrado - A.3) Controle de Qualidade - A.3.4) Adjudicação
 
 
-# Início - A) Anotador Integrado - A.4) Exportação - A.4.1) Gerar CoNLL Final
 def exportar_conll_final(sessao, caminho_saida):
     # Gera o arquivo CoNLL final usando as labels adjudicadas.
     # Para sentenças sem discordância, usa a label do anotador 1.
     # Para sentenças com discordância, usa a adjudicação (prioridade máxima).
-    # Persiste o caminho e totais em ExecucaoAnotacao para rastreabilidade.
+    # Exporta APENAS sentenças que foram efetivamente anotadas (com pelo menos
+    # um AnotacaoToken registrado) — evita exportar sentenças pendentes como all-O.
 
-    sentencas = Sentenca.objects.filter(sessao=sessao).order_by('ordem')
     anotadores = list(
         AnotacaoToken.objects.filter(
             sentenca__sessao=sessao,
         ).values_list('anotador_id', flat=True).distinct()
     )
+
+    # Filtra apenas sentenças que têm pelo menos uma anotação registrada
+    sentencas_anotadas_ids = AnotacaoToken.objects.filter(
+        sentenca__sessao=sessao,
+    ).values_list('sentenca_id', flat=True).distinct()
+
+    sentencas = Sentenca.objects.filter(
+        sessao=sessao,
+        id__in=sentencas_anotadas_ids,
+    ).order_by('ordem')
 
     total_sentencas = 0
     total_tokens    = 0
@@ -99,15 +108,13 @@ def exportar_conll_final(sessao, caminho_saida):
 
             for pos in range(n_tokens):
                 token = sentenca.tokens[pos]
-                # Adjudicação tem prioridade sobre anotador 1
                 label = adjudicacoes.get(pos, anot1.get(pos, 'O'))
                 f.write(f'{token}\t{label}\n')
                 total_tokens += 1
 
-            f.write('\n')  # linha em branco entre sentenças (padrão CoNLL)
+            f.write('\n')
             total_sentencas += 1
 
-    # Persiste o caminho do CoNLL e os totais no banco — rastreabilidade do experimento
     if sessao.experimento:
         anot = getattr(sessao.experimento, 'anotacao', None)
         if anot:
@@ -116,4 +123,3 @@ def exportar_conll_final(sessao, caminho_saida):
             anot.save()
 
     return {'total_sentencas': total_sentencas, 'total_tokens': total_tokens}
-# Fim - A) Anotador Integrado - A.4) Exportação - A.4.1) Gerar CoNLL Final

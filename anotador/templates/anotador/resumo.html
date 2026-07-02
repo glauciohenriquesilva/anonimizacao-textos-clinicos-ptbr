@@ -11,17 +11,19 @@
     <a href="{% url 'anotador:anotar' sessao.id %}" class="btn btn-primary">
       <i class="bi bi-pencil-square me-1"></i>Continuar Anotando
     </a>
+
+    <a href="{% url 'anotador:exportar' sessao.id %}" class="btn btn-outline-success">
+      <i class="bi bi-download me-1"></i>Exportar CoNLL
+    </a>
     {% if concluiram %}
-    <a href="{% url 'anotador:kappa' sessao.id %}" class="btn btn-outline-success">
+    <a href="{% url 'anotador:kappa' sessao.id %}" class="btn btn-outline-secondary">
       <i class="bi bi-calculator me-1"></i>Calcular Kappa
     </a>
     <a href="{% url 'anotador:revisar' sessao.id %}" class="btn btn-outline-warning">
       <i class="bi bi-exclamation-triangle me-1"></i>Revisar Discordâncias
     </a>
-    <a href="{% url 'anotador:exportar' sessao.id %}" class="btn btn-outline-success">
-      <i class="bi bi-download me-1"></i>Exportar CoNLL
-    </a>
     {% endif %}
+
   </div>
 </div>
 
