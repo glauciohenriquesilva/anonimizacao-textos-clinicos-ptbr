@@ -16,20 +16,13 @@ db.sqlite3
 *.bak
 
 # If you are using PyCharm #
-# User-specific stuff
 .idea/**/workspace.xml
 .idea/**/tasks.xml
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
-
-# AWS User-specific
 .idea/**/aws.xml
-
-# Generated files
 .idea/**/contentModel.xml
-
-# Sensitive or high-churn files
 .idea/**/dataSources/
 .idea/**/dataSources.ids
 .idea/**/dataSources.local.xml
@@ -37,25 +30,15 @@ db.sqlite3
 .idea/**/dynamic.xml
 .idea/**/uiDesigner.xml
 .idea/**/dbnavigator.xml
-
-# Gradle
 .idea/**/gradle.xml
 .idea/**/libraries
-
-# File-based project format
 *.iws
-
-# IntelliJ
 out/
-
-# JIRA plugin
 atlassian-ide-plugin.xml
 
 # Python #
 *.py[cod]
 *$py.class
-
-# Distribution / packaging
 .Python build/
 develop-eggs/
 dist/
@@ -74,11 +57,9 @@ wheels/
 *.manifest
 *.spec
 
-# Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
 htmlcov/
 .tox/
 .coverage
@@ -90,16 +71,9 @@ coverage.xml
 *.cover
 .hypothesis/
 
-# Jupyter Notebook
 .ipynb_checkpoints
-
-# pyenv
 .python-version
-
-# celery
 celerybeat-schedule.*
-
-# SageMath parsed files
 *.sage.py
 
 # Environments
@@ -111,23 +85,16 @@ ENV/
 env.bak/
 venv.bak/
 
-# mkdocs documentation
 /site
-
-# mypy
 .mypy_cache/
 
-# Sublime Text #
 *.tmlanguage.cache
 *.tmPreferences.cache
 *.stTheme.cache
 *.sublime-workspace
 *.sublime-project
-
-# sftp configuration file
 sftp-config.json
 
-# Package control specific files Package
 Control.last-run
 Control.ca-list
 Control.ca-bundle
@@ -148,4 +115,5 @@ GitHub.sublime-settings
 ~$*.pptx
 
 # Outputs gerados — não versionar
-outputs/
+outputs/preprocessamento/corpus.conll
+outputs/preprocessamento/corpus.jsonl
