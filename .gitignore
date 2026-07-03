@@ -117,3 +117,17 @@ GitHub.sublime-settings
 # Outputs gerados — não versionar
 outputs/preprocessamento/corpus.conll
 outputs/preprocessamento/corpus.jsonl
+
+# Outputs NER — não versionar
+outputs/ner/
+outputs/anotador/
+
+
+
+
+
+
+
+
+
+

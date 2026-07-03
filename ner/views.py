@@ -127,6 +127,17 @@ def divisao(request):
             caminho_teste       = caminhos['test.conll'],
         )
 
+        # Monta lista por entidade para exibição na tabela (treino/dev/teste por linha)
+        verificacao['por_entidade'] = [
+            {
+                'entidade': ent,
+                'treino':   verificacao['treino'].get(ent, 0),
+                'dev':      verificacao['dev'].get(ent, 0),
+                'teste':    verificacao['teste'].get(ent, 0),
+            }
+            for ent in sorted(verificacao['treino'])
+        ]
+
         contexto['verificacao']  = verificacao
         contexto['total_treino'] = len(treino)
         contexto['total_dev']    = len(dev)
@@ -261,7 +272,8 @@ def avaliacao(request):
 
 def baixar_arquivo(request, arquivo):
     permitidos = ['train.conll', 'dev.conll', 'test.conll',
-                  'amostra_anotacao.jsonl', 'corpus_anotado.conll']
+                  'amostra_anotacao.jsonl', 'corpus_anotado.conll',
+                  'crf_model.joblib']
     if arquivo not in permitidos:
         raise Http404
     caminho = os.path.join(OUTPUTS_DIR, arquivo)

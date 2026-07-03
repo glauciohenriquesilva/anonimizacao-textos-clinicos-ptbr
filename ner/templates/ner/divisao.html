@@ -86,12 +86,12 @@
         </tr>
       </thead>
       <tbody>
-        {% for entidade, total in verificacao.treino.items %}
+        {% for row in verificacao.por_entidade %}
         <tr>
-          <td>{{ entidade }}</td>
-          <td class="text-end">{{ total }}</td>
-          <td class="text-end">{{ verificacao.dev|default_if_none:"-" }}</td>
-          <td class="text-end">{{ verificacao.teste|default_if_none:"-" }}</td>
+          <td>{{ row.entidade }}</td>
+          <td class="text-end">{{ row.treino }}</td>
+          <td class="text-end">{{ row.dev }}</td>
+          <td class="text-end">{{ row.teste }}</td>
         </tr>
         {% endfor %}
       </tbody>
