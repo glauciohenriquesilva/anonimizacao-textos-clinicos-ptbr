@@ -143,29 +143,46 @@ def mascarar_telefone(texto):
     # O mascaramento evita que o tokenizador fragmente o número em vários tokens
     # e protege esse PHI de ser ignorado pelo modelo NER.
     # Formatos cobertos:
-    # - (27) 99999-9999      → celular com DDD formatado
-    # - (27) 9999-9999       → fixo com DDD formatado
-    # - (27) 999826676       → DDD entre parênteses + 9 dígitos sem hífen
-    # - 27999999999          → sem formatação, 11 dígitos
-    # - 9999-9999            → fixo sem DDD
-    # - 27 9 9722 3137       → DDD + dígito 9 + número com espaços (formato fragmentado)
-    # - TEL 27 33767-7523    → prefixo TEL + DDD + número com hífen
-    # - TEL 27 33767 - 7523  → prefixo TEL + DDD + número com espaços ao redor do hífen
-    # - 27 992867927         → DDD + espaço + 9 dígitos sem hífen
-    # - 998387639            → celular sem DDD, 9 dígitos começando com 9
+    # - (27) 99999-9999          → celular com DDD formatado
+    # - (27) 9999-9999           → fixo com DDD formatado
+    # - (27) 999826676           → DDD entre parênteses + 9 dígitos sem hífen
+    # - (27) 99706.2830          → DDD entre parênteses + número com ponto como separador
+    # - (27) 99807 9300          → DDD entre parênteses + 5 dígitos + espaço + 4 dígitos
+    # - 27999999999              → sem formatação, 11 dígitos
+    # - 9999-9999                → fixo sem DDD
+    # - 99874.5657               → número com ponto como separador, sem DDD
+    #   ATENÇÃO: risco baixo de conflito com valores clínicos — exige 4 dígitos após o ponto
+    # - 27 9 9722 3137           → DDD + dígito 9 + número com espaços (formato fragmentado)
+    # - TEL 27 33767-7523        → prefixo TEL + DDD + número com hífen
+    # - TEL 27 33767 - 7523      → prefixo TEL + DDD + número com espaços ao redor do hífen
+    # - 27 992867927             → DDD + espaço + 9 dígitos sem hífen
+    # - 27 99612 - 0360          → DDD + espaço + 5 dígitos + espaço + hífen + espaço + 4 dígitos
+    # - 998387639                → celular sem DDD, 9 dígitos começando com 9
     #   ATENÇÃO: pode conflitar com RG de 9 dígitos — risco baixo pois RG
     #   geralmente aparece precedido do rótulo "RG" no texto clínico
+    # - NETA 27 - 9.99773 - 0641 → rótulo de parentesco/contato + DDD + número com ponto como separador
+    #   ATENÇÃO: o ponto é separador do sistema MV, não decimal — exige rótulo antes para não
+    #   conflitar com valores clínicos numéricos
 
     if not isinstance(texto, str):
         return ''
     # Com DDD entre parênteses e hífen: (dd) 9999-9999 ou (dd) 99999-9999
     texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\s*-\s*\d{4}', '__TELEFONE__', texto)
-    # Com DDD entre parênteses sem hífen: (dd) 999999999 ou (dd) 99999999
+    # Com DDD entre parênteses e ponto como separador: (dd) 99999.9999
+    # Ex: (27) 99706.2830
+    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\.\d{4}', '__TELEFONE__', texto)
+    # Com DDD entre parênteses + espaço entre os grupos: (dd) 99999 9999
+    # Ex: (27) 99807 9300
+    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\s+\d{4}', '__TELEFONE__', texto)
+    # Com DDD entre parênteses sem separador: (dd) 999999999 ou (dd) 99999999
     # Ex: (27) 999826676
     texto = re.sub(r'\(\d{2}\)\s*\d{8,9}', '__TELEFONE__', texto)
     # Formato fragmentado: DDD + espaço + 9 + espaço + 4 dígitos + espaço + 4 dígitos
     # Ex: 27 9 9722 3137
     texto = re.sub(r'\b\d{2}\s+9\s+\d{4}\s+\d{4}\b', '__TELEFONE__', texto)
+    # DDD + espaço + 5 dígitos + espaço + hífen + espaço + 4 dígitos
+    # Ex: 27 99612 - 0360
+    texto = re.sub(r'\b\d{2}\s+\d{4,5}\s+-\s+\d{4}\b', '__TELEFONE__', texto)
     # Com DDD sem parênteses e hífen: dd 9999-9999 ou dd 99999-9999
     # Ex: 27 33767-7523, 27 33767 - 7523
     texto = re.sub(r'\b\d{2}\s*\d{4,5}\s*-\s*\d{4}\b', '__TELEFONE__', texto)
@@ -173,10 +190,22 @@ def mascarar_telefone(texto):
     texto = re.sub(r'\b\d{2}\s+\d{9}\b', '__TELEFONE__', texto)
     # Sem formatação: 10 ou 11 dígitos seguidos (DDD + número)
     texto = re.sub(r'\b\d{10,11}\b', '__TELEFONE__', texto)
+    # Número com ponto como separador, sem DDD: 99999.9999 ou 9999.9999
+    # Ex: 99874.5657 — ponto é separador do sistema MV, não decimal
+    texto = re.sub(r'\b\d{4,5}\.\d{4}\b', '__TELEFONE__', texto)
     # Celular sem DDD: 9 dígitos começando com 9 (ex: 998387639)
     texto = re.sub(r'\b9\d{8}\b', '__TELEFONE__', texto)
     # Fixo sem DDD: 9999-9999
     texto = re.sub(r'\b\d{4}\s*-\s*\d{4}\b', '__TELEFONE__', texto)
+    # Formato com ponto como separador, precedido de rótulo de parentesco/contato
+    # Ex: NETA 27 - 9.99773 - 0641 (ponto é separador do sistema MV, não decimal)
+    texto = re.sub(
+        r'(?i)(?:NETA|NETO|FILHA|FILHO|MAE|MÃE|PAI|IRMAO|IRMÃO|IRMA|IRMÃ|ESPOSO|ESPOSA'
+        r'|CONJUGE|CÔNJUGE|FAMILIAR|RESPONSAVEL|RESPONSÁVEL|TEL|FONE|CELULAR|CEL|CONTATO)'
+        r'\s+(\d{2}\s*-\s*\d+\.\d+\s*-\s*\d{4})',
+        lambda m: m.group(0).replace(m.group(1), '__TELEFONE__'),
+        texto,
+    )
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.6) Mascaramento telefone → __TELEFONE__
 
