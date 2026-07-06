@@ -139,17 +139,25 @@ def treinar_bert(model_id, caminho_train, caminho_dev, caminho_saida, epochs=5, 
         logging_steps=50,
     )
 
+    data_collator = DataCollatorForTokenClassification(tokenizer)
+
+    # 'tokenizer' foi renomeado para 'processing_class' no transformers >= 4.46
+    import transformers as _tf
+    _major, _minor = [int(x) for x in _tf.__version__.split('.')[:2]]
+    _tokenizer_kwarg = 'processing_class' if (_major, _minor) >= (4, 46) else 'tokenizer'
+
     trainer = Trainer(
         model=modelo,
         args=args,
         train_dataset=ds_treino,
         eval_dataset=ds_dev,
-        tokenizer=tokenizer,
-        data_collator=DataCollatorForTokenClassification(tokenizer),
+        data_collator=data_collator,
+        **{_tokenizer_kwarg: tokenizer},
     )
 
     trainer.train()
     trainer.save_model(caminho_saida)
+    tokenizer.save_pretrained(caminho_saida)  # garante que o tokenizer é salvo junto
 
     return trainer, tokenizer, label2id, id2label
 # Fim - 2) NER - 2.3) Treinamento dos Modelos - 2.3.2 a 2.3.5) Fine-tuning BERT (Colab GPU)
