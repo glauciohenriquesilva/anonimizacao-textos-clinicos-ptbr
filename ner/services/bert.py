@@ -8,9 +8,43 @@ from transformers import (
 )
 from datasets import Dataset
 from seqeval.metrics import classification_report
-from preprocessamento.services.preprocessamento import tokenizar_e_alinhar_bert
 
 # Início - 2) NER - 2.3) Treinamento dos Modelos - 2.3.2 a 2.3.5) Fine-tuning BERT (Colab GPU)
+# Nota: tokenizar_e_alinhar_bert foi internalizada aqui para que bert.py seja
+# importável sem dependência do Django (permite uso direto em notebooks Colab/local).
+
+def tokenizar_e_alinhar_bert(sentenca, labels_bio, tokenizer, max_length=512, stride=64):
+    # Tokeniza uma sentença com o tokenizer do HuggingFace e alinha as labels BIO
+    # com os subtokens gerados pelo WordPiece.
+    # sentenca   : lista de tokens word-level
+    # labels_bio : lista de labels BIO alinhadas (None em modo inferência)
+    # tokenizer  : instância de AutoTokenizer já carregada
+    encoding = tokenizer(
+        sentenca,
+        is_split_into_words=True,
+        return_offsets_mapping=False,
+        truncation=True,
+        max_length=max_length,
+        stride=stride,
+        return_overflowing_tokens=True,
+        padding='max_length',
+        return_tensors=None,
+    )
+    todas_labels = []
+    for chunk_idx in range(len(encoding['input_ids'])):
+        word_ids = encoding.word_ids(batch_index=chunk_idx)
+        labels_alinhadas = []
+        palavra_anterior = None
+        for word_id in word_ids:
+            if word_id is None:
+                labels_alinhadas.append(-100)
+            elif word_id != palavra_anterior:
+                labels_alinhadas.append(labels_bio[word_id] if labels_bio is not None else None)
+                palavra_anterior = word_id
+            else:
+                labels_alinhadas.append(-100)
+        todas_labels.append(labels_alinhadas)
+    return encoding, todas_labels
 # MODEL_ID — trocar conforme o modelo a treinar:
 #   BioBERTpt-clin  : 'pucpr/biobertpt-clin'
 #   BERTimbau-leNER : 'pierreguillou/bert-base-cased-pt-lenerbr'

@@ -4,6 +4,7 @@ import json
 from collections import Counter
 from django.shortcuts import render
 from django.http import FileResponse, Http404
+from analise_exploratoria.models import Experimento
 
 from .services.anotacao import (
     selecionar_amostra_anotacao,
@@ -94,7 +95,8 @@ def anotacao(request):
 
 # Início - 2) NER - Interface Django - Divisão
 def divisao(request):
-    contexto = {}
+    experimentos = Experimento.objects.all().order_by('-criado_em')
+    contexto = {'experimentos': experimentos}
 
     if request.method == 'POST':
         arquivo = request.FILES.get('arquivo_conll')
@@ -102,6 +104,9 @@ def divisao(request):
         if not arquivo:
             contexto['erro'] = 'Selecione um arquivo CoNLL antes de executar.'
             return render(request, 'ner/divisao.html', contexto)
+
+        experimento_id = request.POST.get('experimento_id')
+        experimento    = Experimento.objects.filter(id=experimento_id).first() if experimento_id else None
 
         # Salva o arquivo enviado em outputs/ner/ antes de processar
         os.makedirs(OUTPUTS_DIR, exist_ok=True)
@@ -115,6 +120,7 @@ def divisao(request):
         caminhos           = exportar_splits_conll(treino, dev, teste, OUTPUTS_DIR)
 
         ExecucaoDivisao.objects.create(
+            experimento         = experimento,
             total_treino        = len(treino),
             total_dev           = len(dev),
             total_teste         = len(teste),
@@ -150,7 +156,8 @@ def divisao(request):
 
 # Início - 2) NER - Interface Django - Treinamento CRF
 def treinamento(request):
-    contexto = {}
+    experimentos = Experimento.objects.all().order_by('-criado_em')
+    contexto = {'experimentos': experimentos}
 
     if request.method == 'POST':
         arquivo = request.FILES.get('arquivo_conll')
@@ -158,6 +165,9 @@ def treinamento(request):
         if not arquivo:
             contexto['erro'] = 'Selecione o arquivo train.conll antes de executar.'
             return render(request, 'ner/treinamento.html', contexto)
+
+        experimento_id = request.POST.get('experimento_id')
+        experimento    = Experimento.objects.filter(id=experimento_id).first() if experimento_id else None
 
         # Salva o arquivo de treino enviado em outputs/ner/
         os.makedirs(OUTPUTS_DIR, exist_ok=True)
@@ -173,6 +183,7 @@ def treinamento(request):
         tempo  = round(time.time() - inicio, 2)
 
         ExecucaoTreinamento.objects.create(
+            experimento           = experimento,
             nome_modelo           = 'CRF',
             hiperparametros_json  = {'c1': 0.1, 'c2': 0.1, 'max_iterations': 100},
             tempo_treinamento_seg = tempo,
