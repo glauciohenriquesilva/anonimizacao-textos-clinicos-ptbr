@@ -27,7 +27,7 @@ def tokenizar_e_alinhar_bert(sentenca, labels_bio, tokenizer, max_length=512, st
         max_length=max_length,
         stride=stride,
         return_overflowing_tokens=True,
-        padding='max_length',
+        padding=False,        # padding dinâmico via DataCollator — economiza RAM
         return_tensors=None,
     )
     todas_labels = []
@@ -85,6 +85,7 @@ def construir_mapa_labels(treino, dev, teste):
 
 def tokenizar_dataset(exemplos, tokenizer, label2id, max_length=512, stride=64):
     # Tokeniza cada exemplo e alinha as labels BIO com os subtokens gerados pelo WordPiece
+    # Sem padding fixo — o DataCollatorForTokenClassification faz padding dinâmico por batch
     resultado = {'input_ids': [], 'attention_mask': [], 'labels': []}
     for ex in exemplos:
         labels_ids = [label2id[l] for l in ex['labels']]
@@ -135,7 +136,10 @@ def treinar_bert(model_id, caminho_train, caminho_dev, caminho_saida, epochs=5, 
         save_strategy='best',           # salva apenas o melhor checkpoint
         load_best_model_at_end=True,    # carrega o melhor modelo ao final do treino
         metric_for_best_model='eval_loss',
-        fp16=torch.cuda.is_available(), # half-precision se GPU disponível
+        fp16=torch.cuda.is_available(),              # half-precision se GPU disponível
+        gradient_checkpointing=True,                 # reduz VRAM a custo de ~20% mais tempo
+        gradient_accumulation_steps=4,               # batch efetivo = batch_size * 4
+        dataloader_pin_memory=False,                 # evita pico de RAM no carregamento
         logging_steps=50,
     )
 
