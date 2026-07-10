@@ -100,7 +100,7 @@ def tokenizar_dataset(exemplos, tokenizer, label2id, max_length=512, stride=64):
     return resultado
 
 
-def treinar_bert(model_id, caminho_train, caminho_dev, caminho_saida, epochs=5, batch_size=16):
+def treinar_bert(model_id, caminho_train, caminho_dev, caminho_saida, epochs=5, batch_size=16, learning_rate=2e-5):
     # Carrega tokenizer e modelo, tokeniza os splits, treina e salva o modelo.
 
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -130,7 +130,7 @@ def treinar_bert(model_id, caminho_train, caminho_dev, caminho_saida, epochs=5, 
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        learning_rate=2e-5,             # taxa de aprendizado padrão para fine-tuning BERT
+        learning_rate=learning_rate,    # taxa de aprendizado — configurável por modelo
         weight_decay=0.01,              # regularização L2
         eval_strategy='epoch',          # avalia ao final de cada época
         save_strategy='best',           # salva apenas o melhor checkpoint
