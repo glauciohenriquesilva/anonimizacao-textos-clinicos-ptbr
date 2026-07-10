@@ -185,7 +185,7 @@ def treinamento(request):
         ExecucaoTreinamento.objects.create(
             experimento           = experimento,
             nome_modelo           = 'CRF',
-            hiperparametros_json  = {'c1': 0.1, 'c2': 0.1, 'max_iterations': 100},
+            hiperparametros_json  = {'c1': 0.1, 'c2': 0.1, 'max_iterations': 300},
             tempo_treinamento_seg = tempo,
             classes_json          = list(crf.classes_),
             caminho_modelo        = caminho_modelo,

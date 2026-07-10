@@ -2,7 +2,7 @@
 
 import joblib
 import sklearn_crfsuite
-from sklearn_crfsuite import metrics
+from seqeval.metrics import classification_report, f1_score
 from preprocessamento.services.preprocessamento import (
     tokenizar_word_level,
     extrair_features_sentenca,
@@ -42,6 +42,7 @@ def ler_conll(caminho):
 def treinar_crf(caminho_train, caminho_modelo):
     # Lê o train.conll, extrai features e treina o modelo CRF com L-BFGS.
     # Salva o modelo treinado em caminho_modelo (.joblib).
+    # max_iterations=300 garante convergência do L-BFGS (100 era insuficiente).
 
     tokens, labels = ler_conll(caminho_train)
 
@@ -52,9 +53,9 @@ def treinar_crf(caminho_train, caminho_modelo):
     # Instancia o CRF com algoritmo L-BFGS e regularização L1+L2
     crf = sklearn_crfsuite.CRF(
         algorithm='lbfgs',
-        c1=0.1,    # regularização L1 — promove esparsidade nas features
-        c2=0.1,    # regularização L2 — penaliza pesos grandes
-        max_iterations=100,
+        c1=0.1,             # regularização L1 — promove esparsidade nas features
+        c2=0.1,             # regularização L2 — penaliza pesos grandes
+        max_iterations=300, # aumentado de 100 para garantir convergência do L-BFGS
         all_possible_transitions=True,  # aprende transições mesmo não vistas no treino
     )
 
@@ -67,7 +68,11 @@ def treinar_crf(caminho_train, caminho_modelo):
 
 
 def avaliar_crf(crf, caminho_teste):
-    # Avalia o modelo CRF no conjunto de teste e retorna métricas por entidade.
+    # Avalia o modelo CRF no conjunto de teste.
+    # Usa seqeval (entity-level) — consistente com a avaliação dos modelos BERT.
+    # Retorna:
+    #   f1      : F1 micro entity-level (float)
+    #   relatorio : classification_report detalhado por entidade (str)
 
     tokens, labels = ler_conll(caminho_teste)
     X_teste = [extrair_features_sentenca(t) for t in tokens]
@@ -75,14 +80,9 @@ def avaliar_crf(crf, caminho_teste):
 
     y_pred = crf.predict(X_teste)
 
-    # Labels únicas excluindo O (não é entidade)
-    labels_unicas = list(crf.classes_)
-    labels_unicas = [l for l in labels_unicas if l != 'O']
+    # Avaliação entity-level com seqeval — mesmo método dos modelos BERT
+    f1 = f1_score(y_teste, y_pred)
+    relatorio = classification_report(y_teste, y_pred, digits=4)
 
-    # Relatório detalhado por entidade (precision, recall, f1)
-    relatorio = metrics.flat_classification_report(
-        y_teste, y_pred, labels=labels_unicas, digits=4
-    )
-
-    return relatorio
+    return f1, relatorio
 # Fim - 2) NER - 2.3) Treinamento dos Modelos - 2.3.1) CRF Baseline (local, CPU)
