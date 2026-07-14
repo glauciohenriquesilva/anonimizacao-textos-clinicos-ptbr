@@ -188,6 +188,74 @@ def mascarar_horas(texto):
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4b) Mascaramento horas → __HORA__
 
+# Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4c) Correção de erros de digitação
+def corrigir_erros_digitacao(texto):
+    """
+    Corrige padrões de erro de digitação sistemáticos identificados no corpus clínico MV.
+    Deve ser chamada ANTES das máscaras de PHI (CPF, telefone, etc.) para que os tokens
+    separados possam ser processados corretamente pelo regex e pelo NER.
+
+    Padrões cobertos (mapeados via análise exploratória do Exp 002 — julho/2026):
+
+      Padrão 1 — Dígito colado em MAIÚSCULA ≥4 letras (148 casos no corpus Exp 002)
+        Ex: "7886PRISCILA" → "7886 PRISCILA"  |  "80MMHG" → "80 MMHG"
+        Limiar ≥4 letras preserva abreviações de 3 chars: UTI, GTT, SNG, etc.
+
+      Padrão 2 — Palavra minúscula.MAIÚSCULA≥4 (103 casos)
+        Fim de frase colado em cabeçalho de seção sem espaço/quebra de linha.
+        Ex: "enfermagem.RISCOS" → "enfermagem. RISCOS"
+
+      Padrão 3 — MAIÚSCULA.MAIÚSCULA≥5 (343 casos)
+        Dois cabeçalhos de seção colados via ponto.
+        Ex: "MOMENTO.CONDUTA" → "MOMENTO. CONDUTA"
+        Preserva clusters de abreviações curtas: SOPROS.AP, VMG.MMII, RA.ABD (2ª <=4 chars)
+
+      Padrão 4 — Letra+dígito colado em MAIÚSCULA≥4 (13 casos)
+        Ex: "GCS15PIFR" → "GCS 15 PIFR"  |  "PSICOLOGIA307DEMANDA" → "PSICOLOGIA 307 DEMANDA"
+
+      Padrão 5 — Sequências puras de >=3 underscores (72 tokens)
+        Campos em branco de formulários clínicos (templates de UTI/enfermagem).
+        Ex: "______" → " "  |  Não afeta __DATA__, __HORA__ (tem letras entre os underscores)
+
+    Referencias metodologicas:
+      - Apostolova et al. (2009) — Detection of sentence boundaries and abbreviations in
+        clinical narratives. PMC4474545. (problema do ponto ambiguo no texto clinico)
+      - Savova et al. (2010) — cTAKES: Apache clinical Text Analysis and Knowledge Extraction
+        System. JAMIA 17(5). (pipeline de pre-processamento para NLP clinico)
+      - Nevéol et al. (2018) — Clinical NLP for research and practice. Yearb Med Inform.
+        (desafios gerais de pre-processamento em EHR multilingue)
+    """
+    if not isinstance(texto, str):
+        return ''
+
+    M = r'[A-ZÁÉÍÓÚÀÈÌÒÙÃÕÂÊÎÔÛÇ]'   # letra maiuscula (inclui acentuadas)
+    m = r'[a-záéíóúàèìòùãõâêîôûç]'   # letra minuscula (inclui acentuadas)
+
+    # Padrão 4 primeiro (mais específico): letra+digito+MAIUSCULA>=4
+    # Deve rodar ANTES do Padrão 1 para evitar conflito de ordem.
+    # "GCS15PIFR" → "GCS 15 PIFR" | "PSICOLOGIA307DEMANDA" → "PSICOLOGIA 307 DEMANDA"
+    texto = re.sub(rf'([A-Za-záéíóúàèìòùãõâêîôûç]+)(\d+)({M}{{4,}})', r'\1 \2 \3', texto)
+
+    # Padrão 1: digito + MAIUSCULA>=4 (residual após Padrão 4)
+    # "7886PRISCILA" → "7886 PRISCILA" | "80MMHG" → "80 MMHG"
+    texto = re.sub(rf'(\d+)({M}{{4,}})', r'\1 \2', texto)
+
+    # Padrão 2: minuscula.MAIUSCULA>=4 (fim de frase + cabecalho sem espaco)
+    # "enfermagem.RISCOS" → "enfermagem. RISCOS"
+    texto = re.sub(rf'({m}+)\.({M}{{4,}})', r'\1. \2', texto)
+
+    # Padrão 3: MAIUSCULA.MAIUSCULA>=5 (dois cabecalhos colados)
+    # "MOMENTO.CONDUTA" → "MOMENTO. CONDUTA" | preserva "SOPROS.AP", "VMG.MMII"
+    texto = re.sub(rf'({M}{{2,}})\.({M}{{5,}})', r'\1. \2', texto)
+
+    # Padrão 5: sequencias puras de >=3 underscores (campos em branco de templates)
+    # "______" → " " | nao afeta __DATA__, __HORA__ etc. (max 2 underscores seguidos)
+    texto = re.sub(r'_{3,}', ' ', texto)
+
+    return texto
+# Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4c) Correção de erros de digitação
+
+
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.5) Mascaramento CPF → __CPF__
 def mascarar_cpf(texto):
     # O CPF é um identificador pessoal sensível, e deve ser mascarado para proteger a privacidade dos pacientes. 
@@ -335,6 +403,9 @@ def normalizar_texto(texto):
 
     # Substitui tabs por espaço e colapsa múltiplos espaços em um único, linha a linha
     texto = colapsar_espacos(texto)
+
+    # Corrige erros de digitação sistemáticos antes das máscaras de PHI
+    texto = corrigir_erros_digitacao(texto)
 
     # Detecta datas nos 4 formatos encontrados no dataset e converte para ISO 8601 (YYYY-MM-DD)
     texto = normalizar_datas_no_texto(texto)
