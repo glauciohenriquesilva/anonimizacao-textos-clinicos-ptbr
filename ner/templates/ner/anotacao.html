@@ -14,8 +14,19 @@
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="acao" value="selecionar" />
+      {% if not experimento_ativo %}
+      <div class="alert alert-warning py-2 mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Nenhum experimento ativo. Selecione um na sidebar.
+      </div>
+      {% else %}
+      <div class="alert alert-success py-2 mb-3">
+        <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>
+        Experimento ativo: <strong>{{ experimento_ativo.nome }}</strong>
+      </div>
+      {% endif %}
       <div class="row g-3 align-items-end">
-        <div class="col-md-7">
+        <div class="col-md-4">
           <label class="form-label fw-semibold">Arquivo corpus.jsonl</label>
           {% if arquivos_jsonl %}
             <select name="caminho_jsonl" class="form-select" required>

@@ -115,8 +115,8 @@ GitHub.sublime-settings
 ~$*.pptx
 
 # Outputs gerados — não versionar
-outputs/preprocessamento/corpus.conll
-outputs/preprocessamento/corpus.jsonl
+outputs/preprocessamento/
+outputs/results/
 
 # Outputs NER — não versionar
 outputs/ner/

@@ -7,58 +7,289 @@
   <i class="bi bi-shield-lock me-2 text-primary"></i>Anonimização / Desidentificação
 </h4>
 
-<!-- 3.1 Substituição por Marcadores -->
-<div class="card mb-4">
-  <div class="card-header fw-semibold">3.1 Substituição por Marcadores</div>
-  <div class="card-body">
-    <p class="text-muted small mb-3">
-      A anonimização é executada automaticamente após o treinamento e avaliação do modelo NER.
-      Os spans PHI detectados são substituídos por marcadores do tipo <code>[PESSOA_1]</code>,
-      <code>[DATA_1]</code> etc. O <code>cd_paciente</code> é pseudonimizado via SHA-256.
-    </p>
-    <form method="post">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-primary">
-        <i class="bi bi-play-fill me-1"></i>Executar Anonimização
-      </button>
-    </form>
-    {% if em_desenvolvimento %}
-    <div class="alert alert-info mt-3">
-      <i class="bi bi-info-circle me-2"></i>
-      Esta etapa será executada após a conclusão do treinamento e avaliação dos modelos NER.
-      Complete as etapas anteriores primeiro.
-    </div>
+{% if erro %}
+<div class="alert alert-danger">
+  <i class="bi bi-exclamation-triangle me-2"></i><strong>Erro:</strong> {{ erro }}
+</div>
+{% endif %}
+
+{% if ok %}
+  {% if modo_ok == 'crf' %}
+  <div class="alert alert-success">
+    <i class="bi bi-check-circle me-2"></i>
+    Anonimização CRF executada. Coverage=<strong>{{ metricas_l.coverage }}</strong> |
+    Precision_anon=<strong>{{ metricas_l.precision_anon }}</strong> |
+    F1_anon=<strong>{{ metricas_l.f1_anon }}</strong>
+    {% if total_docs %} · {{ total_docs }} documentos anonimizados{% endif %}
+    {% if execucao.caminho_corpus_anonimizado %}
+    <a href="{% url 'anonimizacao:baixar_arquivo' 'corpus_anonimizado.jsonl' %}" class="btn btn-sm btn-outline-success ms-3">
+      <i class="bi bi-download me-1"></i>corpus_anonimizado.jsonl
+    </a>
     {% endif %}
   </div>
-</div>
-
-<!-- Fluxo resumido -->
-<div class="card mb-4">
-  <div class="card-header fw-semibold">Fluxo do Pipeline</div>
-  <div class="card-body">
-    <ol class="mb-0">
-      <li class="mb-2">
-        <strong>3.1.1</strong> Extração dos spans PHI detectados pelo modelo NER
-      </li>
-      <li class="mb-2">
-        <strong>3.1.2</strong> Ordenação reversa dos spans (de trás para frente)
-      </li>
-      <li class="mb-2">
-        <strong>3.1.3</strong> Substituição consistente — mesma entidade → mesmo <code>[TIPO_N]</code>
-      </li>
-      <li class="mb-2">
-        <strong>3.1.4</strong> Pseudonimização do <code>cd_paciente</code> → SHA-256 com salt
-      </li>
-      <li class="mb-2">
-        <strong>3.2</strong> Avaliação de Privacidade (Coverage, Precision_anon, Levenshtein)
-      </li>
-      <li class="mb-2">
-        <strong>3.3</strong> Avaliação de Utilidade (ΔF1 por entidade clínica)
-      </li>
-      <li>
-        <strong>3.4</strong> Consolidação — Tabela TILD + CSV + Gráficos
-      </li>
-    </ol>
+  {% elif modo_ok == 'importar' %}
+  <div class="alert alert-success">
+    <i class="bi bi-check-circle me-2"></i>
+    Métricas do modelo <strong>{{ nome_modelo }}</strong> registradas com sucesso.
   </div>
-</div>
+  {% endif %}
+{% endif %}
+
+<!-- Abas de modo -->
+<ul class="nav nav-tabs mb-4" id="modoTab" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if not ok or modo_ok == 'crf' %}active{% endif %}"
+            id="tab-crf" data-bs-toggle="tab" data-bs-target="#painel-crf"
+            type="button" role="tab">
+      <i class="bi bi-cpu me-1"></i>CRF — Pipeline local
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if modo_ok == 'importar' %}active{% endif %}"
+            id="tab-importar" data-bs-toggle="tab" data-bs-target="#painel-importar"
+            type="button" role="tab">
+      <i class="bi bi-cloud-download me-1"></i>BERT / Colab — Importar métricas
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ========== ABA 1: CRF local ========== -->
+  <div class="tab-pane fade {% if not ok or modo_ok == 'crf' %}show active{% endif %}"
+       id="painel-crf" role="tabpanel">
+
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-play-fill me-1 text-success"></i>Pipeline CRF completo (modelo local)
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Carrega o modelo CRF treinado no AnonClin, calcula métricas L (Coverage, Precision_anon)
+          no test.conll e, opcionalmente, anonimiza um corpus JSONL.
+        </p>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="modo" value="crf" />
+
+          {% if not experimento_ativo %}
+          <div class="alert alert-warning py-2 mb-3">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Nenhum experimento ativo. Selecione um na sidebar.
+          </div>
+          {% else %}
+          <div class="alert alert-success py-2 mb-3">
+            <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>
+            Experimento ativo: <strong>{{ experimento_ativo.nome }}</strong>
+          </div>
+          {% endif %}
+
+          <h6 class="fw-semibold mb-2">Modelo CRF</h6>
+          <div class="row g-3 mb-3">
+            {% if modelos_crf %}
+            <div class="col-md-6">
+              <label class="form-label">Usar modelo em outputs/ner/</label>
+              <select name="caminho_modelo_crf" class="form-select">
+                <option value="">— Auto-detectar crf_model.joblib —</option>
+                {% for m in modelos_crf %}
+                  <option value="{{ m }}">{{ m|slice:"-60:" }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+            <div class="col-md-6">
+              <label class="form-label">Upload modelo (.joblib)</label>
+              <input type="file" name="arquivo_modelo" class="form-control" accept=".joblib,.pkl" />
+              <div class="form-text">Substitui a seleção acima, se enviado.</div>
+            </div>
+          </div>
+
+          <hr class="my-3" />
+
+          <h6 class="fw-semibold mb-2">Arquivo test.conll (para métricas L)</h6>
+          <div class="row g-3 mb-3">
+            {% if arquivos_conll %}
+            <div class="col-md-6">
+              <label class="form-label">Usar arquivo em outputs/ner/</label>
+              <select name="caminho_conll" class="form-select">
+                <option value="">— Auto-detectar test.conll —</option>
+                {% for c in arquivos_conll %}
+                  <option value="{{ c }}">{{ c|slice:"-60:" }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+            <div class="col-md-6">
+              <label class="form-label">Upload test.conll</label>
+              <input type="file" name="arquivo_teste" class="form-control" accept=".conll" />
+              <div class="form-text">Substitui a seleção acima, se enviado.</div>
+            </div>
+          </div>
+
+          <hr class="my-3" />
+
+          <h6 class="fw-semibold mb-2">Corpus para anonimizar <span class="text-muted fw-normal small">(opcional)</span></h6>
+          <div class="row g-3 mb-3">
+            {% if arquivos_jsonl %}
+            <div class="col-md-6">
+              <label class="form-label">Selecionar corpus.jsonl em outputs/</label>
+              <select name="caminho_corpus" class="form-select">
+                <option value="">— Não anonimizar corpus agora —</option>
+                {% for j in arquivos_jsonl %}
+                  <option value="{{ j }}">{{ j|slice:"-60:" }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+            <div class="col-md-6">
+              <label class="form-label">Upload corpus.jsonl</label>
+              <input type="file" name="arquivo_corpus" class="form-control" accept=".jsonl" />
+              <div class="form-text">Formato: uma sentença por linha com campo <code>texto</code>.</div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-play-fill me-1"></i>Executar Anonimização CRF
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Resultado CRF -->
+    {% if ok and modo_ok == 'crf' %}
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">Métricas L — Resultado</div>
+      <div class="card-body">
+        <table class="table table-sm table-bordered w-auto">
+          <thead class="table-light">
+            <tr><th>Métrica</th><th>Valor</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Coverage (Recall PHI)</td><td><strong>{{ metricas_l.coverage }}</strong></td></tr>
+            <tr><td>Precision_anon</td><td><strong>{{ metricas_l.precision_anon }}</strong></td></tr>
+            <tr><td>F1_anon</td><td><strong>{{ metricas_l.f1_anon }}</strong></td></tr>
+            <tr><td>TP</td><td>{{ metricas_l.tp }}</td></tr>
+            <tr><td>FP</td><td>{{ metricas_l.fp }}</td></tr>
+            <tr><td>FN</td><td>{{ metricas_l.fn }}</td></tr>
+            <tr><td>Sentenças avaliadas</td><td>{{ metricas_l.n_sentencas }}</td></tr>
+            {% if total_docs %}<tr><td>Documentos anonimizados</td><td>{{ total_docs }}</td></tr>{% endif %}
+            {% if tempo_anon %}<tr><td>Tempo de anonimização</td><td>{{ tempo_anon }}s</td></tr>{% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- /painel-crf -->
+
+
+  <!-- ========== ABA 2: Importar métricas do Colab ========== -->
+  <div class="tab-pane fade {% if modo_ok == 'importar' %}show active{% endif %}"
+       id="painel-importar" role="tabpanel">
+
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-cloud-download me-1 text-info"></i>Registrar métricas de modelo treinado no Colab
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Modelos BERT são treinados e avaliados no Google Colab (GPU). Use este formulário para
+          registrar as métricas calculadas no Colab, consolidando todos os modelos no Dashboard TILD.
+        </p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="modo" value="importar" />
+
+          {% if not experimento_ativo %}
+          <div class="alert alert-warning py-2 mb-3">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Nenhum experimento ativo. Selecione um na sidebar.
+          </div>
+          {% else %}
+          <div class="alert alert-success py-2 mb-3">
+            <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>
+            Experimento ativo: <strong>{{ experimento_ativo.nome }}</strong>
+          </div>
+          {% endif %}
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Nome do modelo</label>
+              <input type="text" name="nome_modelo" class="form-control"
+                     placeholder="Ex: BERTimbau-leNER-large" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Total de documentos anonimizados</label>
+              <input type="number" name="total_documentos" class="form-control"
+                     placeholder="0" min="0" value="0" />
+            </div>
+          </div>
+
+          <hr class="my-3" />
+          <h6 class="fw-semibold mb-2">Métricas L — Privacidade</h6>
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <label class="form-label">Coverage (Recall)</label>
+              <input type="text" name="coverage" class="form-control" placeholder="Ex: 0.7868" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Precision_anon</label>
+              <input type="text" name="precision_anon" class="form-control" placeholder="Ex: 0.7660" />
+            </div>
+          </div>
+
+          <hr class="my-3" />
+          <h6 class="fw-semibold mb-2">Métricas I — Utilidade (ΔF1) <span class="text-muted fw-normal small">— opcional</span></h6>
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <label class="form-label">F1 downstream original</label>
+              <input type="text" name="f1_downstream_original" class="form-control" placeholder="Ex: 0.75" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">F1 downstream anonimizado</label>
+              <input type="text" name="f1_downstream_anonimizado" class="form-control" placeholder="Ex: 0.70" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">ΔF1</label>
+              <input type="text" name="delta_f1" class="form-control" placeholder="Ex: -0.05" />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Observações</label>
+            <textarea name="obs" class="form-control" rows="2"
+                      placeholder="Ex: Colab Pro, 8 épocas, lr=2e-5, melhor checkpoint época 5"></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-info text-white">
+            <i class="bi bi-save me-1"></i>Registrar métricas
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Referência rápida Exp 001 -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold text-secondary small">
+        <i class="bi bi-info-circle me-1"></i>Referência — Exp 001 (PHI real, sem DATA/HORA/CONTATO)
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr><th>Modelo</th><th>Coverage</th><th>Precision_anon</th><th>F1_anon</th></tr>
+          </thead>
+          <tbody class="small">
+            <tr class="table-success"><td><strong>BERTimbau-leNER-large</strong></td><td>0.7868</td><td>0.7660</td><td>0.7763</td></tr>
+            <tr><td>BioBERTpt-clin</td><td>0.6977</td><td>0.6618</td><td>0.6793</td></tr>
+            <tr><td>CRF</td><td>0.5232</td><td>0.7377</td><td>0.6122</td></tr>
+            <tr><td>BERTimbau-leNER-base</td><td>0.6240</td><td>0.5551</td><td>0.5876</td></tr>
+            <tr><td>mmBERT-base</td><td>0.5698</td><td>0.5231</td><td>0.5454</td></tr>
+            <tr><td>ModernBERT-base</td><td>0.0426</td><td>0.2500</td><td>0.0728</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /painel-importar -->
+
+</div><!-- /tab-content -->
 {% endblock %}

@@ -9,6 +9,7 @@ def ler_prescricoes(caminho):
         dtype=str,
         on_bad_lines='warn',    # se houver uma linha mal formatada no CSV, apenas avisa no terminal em vez de travar a leitura
     )
+    df.columns = df.columns.str.lower().str.strip()  # Oracle exporta colunas em uppercase
     return df
 # Fim - 0) Análise Exploratória - 0.1) Leitura do DataSet - 0.1.1) Leitura CSV prescrições (sep=";", UTF-8)
 
@@ -21,6 +22,7 @@ def ler_pareceres(caminho):
         dtype=str,
         on_bad_lines='warn',
     )
+    df.columns = df.columns.str.lower().str.strip()  # Oracle exporta colunas em uppercase
     return df
 # Fim - 0) Análise Exploratória - 0.1) Leitura do DataSet - 0.1.2) Leitura CSV pareceres (sep=";", UTF-8)
 
@@ -60,19 +62,32 @@ def periodo_coberto(df_prescricoes, df_pareceres):
 
 # Início - 0) Análise Exploratória - 0.2) Estatísticas Descritivas - 0.2.4) Top especialidades médicas
 def top_especialidades(df_prescricoes, df_pareceres, n=10):
-    especialidades = pd.concat(
-        [df_prescricoes['ds_especialid_atendimento'], df_pareceres['ds_especialid_atendimento']]
-    )
-    contagem = especialidades.value_counts().head(n)
-    return contagem
+    col = 'ds_especialid_atendimento'
+    series = []
+    if col in df_prescricoes.columns:
+        series.append(df_prescricoes[col])
+    if col in df_pareceres.columns:
+        series.append(df_pareceres[col])
+    if not series:
+        return pd.Series(dtype=str)
+    especialidades = pd.concat(series)
+    return especialidades.value_counts().head(n)
 # Fim - 0) Análise Exploratória - 0.2) Estatísticas Descritivas - 0.2.4) Top especialidades médicas
 
 # Início - 0) Análise Exploratória - 0.2) Estatísticas Descritivas - 0.2.5) Contagem de hospitais
 def contar_hospitais(df_prescricoes, df_pareceres):
-    hospitais = pd.concat(
-        [df_prescricoes['ds_multi_empresa'], df_pareceres['ds_multi_empresa']]
-    ).nunique()
-    return hospitais
+    # Prefere ds_multi_empresa (nome); fallback para cd_multi_empresa (código)
+    col = 'ds_multi_empresa'
+    if col not in df_prescricoes.columns and col not in df_pareceres.columns:
+        col = 'cd_multi_empresa'
+    series = []
+    if col in df_prescricoes.columns:
+        series.append(df_prescricoes[col])
+    if col in df_pareceres.columns:
+        series.append(df_pareceres[col])
+    if not series:
+        return 0
+    return pd.concat(series).nunique()
 # Fim - 0) Análise Exploratória - 0.2) Estatísticas Descritivas - 0.2.5) Contagem de hospitais
 
 # Início - 0) Análise Exploratória - 0.3) Distribuição de Tokens - 0.3.1) Tokenização simples (split por espaço)

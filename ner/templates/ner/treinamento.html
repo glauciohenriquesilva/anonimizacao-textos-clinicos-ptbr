@@ -18,15 +18,17 @@
   <div class="card-body">
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Experimento</label>
-        <select name="experimento_id" class="form-select">
-          <option value="">— Nenhum —</option>
-          {% for exp in experimentos %}
-          <option value="{{ exp.id }}">[{{ exp.id }}] {{ exp.nome }}</option>
-          {% endfor %}
-        </select>
+      {% if not experimento_ativo %}
+      <div class="alert alert-warning py-2 mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Nenhum experimento ativo. Selecione um na sidebar.
       </div>
+      {% else %}
+      <div class="alert alert-success py-2 mb-3">
+        <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>
+        Experimento ativo: <strong>{{ experimento_ativo.nome }}</strong>
+      </div>
+      {% endif %}
       <div class="mb-3">
         <label class="form-label fw-semibold">Arquivo de treino (.conll)</label>
         <input type="file" name="arquivo_conll" class="form-control" accept=".conll" required />

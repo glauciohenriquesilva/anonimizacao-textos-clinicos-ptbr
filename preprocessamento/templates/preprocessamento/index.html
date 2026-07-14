@@ -12,6 +12,17 @@
   <div class="card-body">
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
+      {% if not experimento_ativo %}
+      <div class="alert alert-warning py-2 mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Nenhum experimento ativo. Selecione um na sidebar antes de executar.
+      </div>
+      {% else %}
+      <div class="alert alert-success py-2 mb-3">
+        <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>
+        Experimento ativo: <strong>{{ experimento_ativo.nome }}</strong>
+      </div>
+      {% endif %}
       <div class="row g-3 align-items-end">
         <div class="col-md-3">
           <label class="form-label">Arquivo de prescrições</label>
@@ -116,7 +127,9 @@
           <td class="text-end">{{ stats.cota }}</td>
           <td class="text-end">{{ stats.selecionadas }}</td>
           <td class="text-center">
-            {% if stats.cota_atingida %}
+            {% if stats.regex_tratado %}
+              <span class="badge bg-info text-dark">✓ Tratado por Regex</span>
+            {% elif stats.cota_atingida %}
               <span class="badge bg-success">✓ OK</span>
             {% else %}
               <span class="badge bg-warning text-dark">⚠ Insuficiente</span>
@@ -129,9 +142,8 @@
   </div>
   {% if resultado.selecao_phi.relatorio_cotas %}
   <div class="card-footer text-muted small">
-    Entidades com status <span class="badge bg-warning text-dark">⚠ Insuficiente</span>
-    indicam que o corpus não tem sentenças suficientes para atingir a cota mínima.
-    Adicione mais documentos ao CSV e reprocesse.
+    <span class="badge bg-info text-dark">✓ Tratado por Regex</span> — entidade mascarada pelo normalizador antes do NER; não precisa de cota no corpus de anotação.<br>
+    <span class="badge bg-warning text-dark">⚠ Insuficiente</span> — corpus não tem sentenças suficientes para atingir a cota mínima. Adicione mais documentos e reprocesse.
   </div>
   {% endif %}
 </div>

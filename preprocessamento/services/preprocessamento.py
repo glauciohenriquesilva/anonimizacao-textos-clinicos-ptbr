@@ -98,22 +98,95 @@ def normalizar_datas_no_texto(texto):
 
 def mascarar_datas_horas(texto):
     """
-    Substitui datas ISO e horários por placeholders após a normalização.
+    Substitui datas ISO por __DATA__ e datetime ISO por __DATA__ __HORA__.
     Deve ser chamada DEPOIS de normalizar_datas_no_texto().
-    
-    Ordem importa: trata "2026-08-04 07:09" antes de tratar cada parte
-    separadamente, para não gerar "__DATA__ __HORA__" de forma errada.
+    Horas isoladas são tratadas por mascarar_horas(), chamada a seguir no pipeline.
     """
     if not isinstance(texto, str):
         return ''
-    # Data com hora juntas: "2026-08-04 07:09" → "__DATA__ __HORA__"
+    # Data+hora com segundos: "2026-08-04 07:09:30" → "__DATA__ __HORA__"
+    texto = re.sub(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\b', '__DATA__ __HORA__', texto)
+    # Data+hora: "2026-08-04 07:09" → "__DATA__ __HORA__"
     texto = re.sub(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}\b', '__DATA__ __HORA__', texto)
     # Data isolada: "2026-08-04" → "__DATA__"
     texto = re.sub(r'\b\d{4}-\d{2}-\d{2}\b', '__DATA__', texto)
-    # Hora isolada: "07:09" → "__HORA__"
-    texto = re.sub(r'\b\d{2}:\d{2}\b', '__HORA__', texto)
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4) Normalização de datas → ISO 8601
+
+# Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4b) Mascaramento horas → __HORA__
+def mascarar_horas(texto):
+    """
+    Substitui formatos de hora isolados por __HORA__.
+    Deve ser chamada DEPOIS de mascarar_datas_horas() para não conflitar com
+    datetime ISO (ex: "2026-08-04 07:09" já virou "__DATA__ __HORA__").
+
+    Formatos cobertos (do mais para o menos específico):
+      Grupo 1  - milissegundos: "07:09:30.123" / "07:09:30,123"
+      Grupo 2  - com segundos: "07:09:30", "7:9:30"
+      Grupo 3  - AM/PM: "07:30 AM", "7:30pm", "07:30 a.m.", "07:30 p.m."
+      Grupo 4  - sufixo h: "14:30h", "9:30h"
+      Grupo 5  - HH:MM simples: "07:09", "7:9", "07:9"
+      Grupo 6  - hXXmin/s: "14h30min45", "9h30m45" (com segundos)
+      Grupo 7  - hXXmin/m: "14h30min", "9h 30m", "14h 30min" (com espaco)
+      Grupo 8  - hXX: "14h30", "9h05" (sem sufixo)
+      Grupo 9  - Xh: "14h", "9h" (hora com h)
+      Grupo 10 - "as ## horas": horario especifico por extenso
+
+    NAO cobre (ambiguos sem contexto - risco de falso positivo clinico):
+      ##.##  - confunde com decimais e dosagens (36.5C, 2.5mg)
+      ##-##  - confunde com faixas de PA e laboratorio (120-80)
+      ##/##  - confunde com PA (120/80), fracoes e datas parciais
+      ## horas / # hora  - confunde com duracao clinica ("ha 3 horas",
+                           "de 4 em 4 horas") que e informacao de utilidade
+    """
+    if not isinstance(texto, str):
+        return ''
+
+    # Grupo 1: milissegundos - "07:09:30.123" / "07:09:30,123"
+    texto = re.sub(r'\b\d{1,2}:\d{1,2}:\d{1,2}[.,]\d{1,3}\b', '__HORA__', texto)
+
+    # Grupo 2: com segundos - "07:09:30", "7:9:30", "07:9:30"
+    texto = re.sub(r'\b\d{1,2}:\d{1,2}:\d{1,2}\b', '__HORA__', texto)
+
+    # Grupo 3: AM/PM - "07:30 AM", "7:30PM", "07:30 a.m.", "07:30 p.m."
+    texto = re.sub(
+        r'\b\d{1,2}:\d{1,2}\s*(?:AM|PM|a\.m\.|p\.m\.)\b',
+        '__HORA__', texto, flags=re.IGNORECASE,
+    )
+
+    # Grupo 4: sufixo h - "14:30h", "9:30h"
+    texto = re.sub(r'\b\d{1,2}:\d{1,2}h\b', '__HORA__', texto, flags=re.IGNORECASE)
+
+    # Grupo 5: HH:MM simples - "07:09", "7:9", "07:9", "7:09", "15:30HS", "__DATA__07:09"
+    # Usa lookahead/lookbehind em vez de \b para capturar hora colada (15:30HS, 23:21hMOTIVO, __DATA__07:44)
+    texto = re.sub(r'(?<!\d)\d{1,2}:\d{1,2}(?!\d)', '__HORA__', texto)
+
+    # Grupo 6: com segundos e min/m - "14h30min45", "9h30m45", "14h 30min 45"
+    texto = re.sub(
+        r'\b\d{1,2}h\s*\d{1,2}\s*(?:min|m)\s*\d{1,2}\b',
+        '__HORA__', texto, flags=re.IGNORECASE,
+    )
+
+    # Grupo 7: com min/m (com ou sem espaco) - "14h30min", "9h 30m", "14h 30min"
+    texto = re.sub(
+        r'\b\d{1,2}h\s*\d{1,2}\s*(?:min|m)\b',
+        '__HORA__', texto, flags=re.IGNORECASE,
+    )
+
+    # Grupo 8: HHhMM - "14h30", "9h05"
+    texto = re.sub(r'\b\d{1,2}h\d{1,2}\b', '__HORA__', texto, flags=re.IGNORECASE)
+
+    # Grupo 9: HHh / Hh - "14h", "9h"
+    texto = re.sub(r'\b\d{1,2}h\b', '__HORA__', texto, flags=re.IGNORECASE)
+
+    # Grupo 10: "as ## horas" - horario especifico por extenso
+    texto = re.sub(
+        r'\b\xE0s\s+\d{1,2}\s+horas?\b',
+        '__HORA__', texto, flags=re.IGNORECASE,
+    )
+
+    return texto
+# Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4b) Mascaramento horas → __HORA__
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.5) Mascaramento CPF → __CPF__
 def mascarar_cpf(texto):
@@ -266,8 +339,11 @@ def normalizar_texto(texto):
     # Detecta datas nos 4 formatos encontrados no dataset e converte para ISO 8601 (YYYY-MM-DD)
     texto = normalizar_datas_no_texto(texto)
 
-    # Substitui datas ISO (YYYY-MM-DD) e horários (HH:MM) por __DATA__ e __HORA__
-    texto = mascarar_datas_horas(texto)    
+    # Substitui datas ISO (YYYY-MM-DD) e datetime ISO por __DATA__ / __DATA__ __HORA__
+    texto = mascarar_datas_horas(texto)
+
+    # Substitui horas isoladas (todos os formatos) por __HORA__
+    texto = mascarar_horas(texto)
 
     # Substitui CPF (com ou sem pontuação) por __CPF__
     texto = mascarar_cpf(texto)
@@ -672,6 +748,10 @@ def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_ent
             registros_unicos.append(r)
     registros = registros_unicos
 
+    # Entidades tratadas integralmente por regex no normalizador — não são alvo do NER.
+    # Aparecem no relatório mas com badge "Tratado por Regex" em vez de "Insuficiente".
+    ENTIDADES_REGEX = {'DATA', 'HORA', 'CONTATO'}
+
     # Amostragem estratificada: para cada entidade, coleta até a cota mínima.
     # Registra também quantos candidatos foram encontrados para alertar
     # quando o corpus não tem sentenças suficientes para uma entidade.
@@ -694,6 +774,7 @@ def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_ent
             'cota':          cota,
             'selecionadas':  len(selecionados_entidade),
             'cota_atingida': len(candidatos) >= cota,
+            'regex_tratado': entidade in ENTIDADES_REGEX,
         }
 
     # Se n_total informado, preenche o restante com sentenças aleatórias

@@ -45,13 +45,13 @@
         {% for linha in tabela %}
         <tr>
           <td><strong>{{ linha.Modelo }}</strong></td>
-          <td class="text-end">{{ linha.F1 NER }}</td>
+          <td class="text-end">{{ linha.F1_NER }}</td>
           <td class="text-end">{{ linha.Coverage }}</td>
           <td class="text-end">{{ linha.Precision_anon }}</td>
           <td class="text-end">{{ linha.Levenshtein }}</td>
-          <td class="text-end">{{ linha.F1 Original }}</td>
-          <td class="text-end">{{ linha.F1 Anonimizado }}</td>
-          <td class="text-end">{{ linha.ΔF1 }}</td>
+          <td class="text-end">{{ linha.F1_Original }}</td>
+          <td class="text-end">{{ linha.F1_Anonimizado }}</td>
+          <td class="text-end">{{ linha.DeltaF1 }}</td>
         </tr>
         {% endfor %}
       </tbody>

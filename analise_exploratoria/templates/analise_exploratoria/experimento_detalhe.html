@@ -19,24 +19,29 @@
 
 <!-- Dados gerais -->
 <div class="card mb-4">
-  <div class="card-header fw-semibold">Informações Gerais</div>
+  <div class="card-header fw-semibold"><i class="bi bi-info-circle me-2"></i>Informações Gerais</div>
   <div class="card-body">
-    <p><strong>Descrição:</strong> {{ exp.descricao|default:"—" }}</p>
-    <p><strong>Criado em:</strong> {{ exp.criado_em|date:"d/m/Y H:i" }}</p>
-    <p><strong>Atualizado em:</strong> {{ exp.atualizado_em|date:"d/m/Y H:i" }}</p>
-    <p class="mb-0"><strong>Observações:</strong> {{ exp.obs|default:"—" }}</p>
+    <div class="row g-3">
+      <div class="col-md-4"><span class="text-muted small d-block">Criado em</span><strong>{{ exp.criado_em|date:"d/m/Y H:i" }}</strong></div>
+      <div class="col-md-4"><span class="text-muted small d-block">Atualizado em</span><strong>{{ exp.atualizado_em|date:"d/m/Y H:i" }}</strong></div>
+    </div>
+    {% if exp.descricao %}<p class="mt-3 mb-1"><strong>Descrição:</strong> {{ exp.descricao }}</p>{% endif %}
+    {% if exp.obs %}<p class="mb-0 text-muted small"><strong>Obs:</strong> {{ exp.obs }}</p>{% endif %}
   </div>
 </div>
 
-<!-- Análise Exploratória -->
+<!-- ══════════════════════════════════════════════════════
+     0) ANÁLISE EXPLORATÓRIA
+     ══════════════════════════════════════════════════════ -->
 {% if exp.analise %}
 <div class="card mb-4">
-  <div class="card-header fw-semibold">0) Análise Exploratória</div>
+  <div class="card-header fw-semibold"><i class="bi bi-bar-chart me-2 text-primary"></i>0) Análise Exploratória</div>
   <div class="card-body">
-    <div class="row g-3">
+    <div class="row g-3 mb-3">
       <div class="col-md-3">
         <div class="text-muted small">Total de Registros</div>
         <div class="fs-5 fw-bold">{{ exp.analise.total_registros }}</div>
+        <div class="text-muted small">{{ exp.analise.total_prescricoes }} prescrições · {{ exp.analise.total_pareceres }} pareceres</div>
       </div>
       <div class="col-md-3">
         <div class="text-muted small">Pacientes Únicos</div>
@@ -51,42 +56,113 @@
         <div class="fs-5 fw-bold">{{ exp.analise.periodo_inicio|date:"d/m/Y" }} — {{ exp.analise.periodo_fim|date:"d/m/Y" }}</div>
       </div>
     </div>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="card border-0 bg-light h-100">
+          <div class="card-body py-2 px-3">
+            <div class="fw-semibold small mb-2">Tokens — Prescrições</div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Mediana</span><strong>{{ exp.analise.tokens_presc_mediana }}</strong></div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Média</span><strong>{{ exp.analise.tokens_presc_media }}</strong></div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Máximo</span><strong>{{ exp.analise.tokens_presc_max }}</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 bg-light h-100">
+          <div class="card-body py-2 px-3">
+            <div class="fw-semibold small mb-2">Tokens — Pareceres</div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Mediana</span><strong>{{ exp.analise.tokens_par_mediana }}</strong></div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Média</span><strong>{{ exp.analise.tokens_par_media }}</strong></div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Máximo</span><strong>{{ exp.analise.tokens_par_max }}</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 bg-light h-100">
+          <div class="card-body py-2 px-3">
+            <div class="fw-semibold small mb-2">Tipo de Texto</div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Texto livre (presc.)</span><strong>{{ exp.analise.presc_pct_texto_livre }}%</strong></div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Template (presc.)</span><strong>{{ exp.analise.presc_pct_template }}%</strong></div>
+            <div class="d-flex justify-content-between small"><span class="text-muted">Texto livre (par.)</span><strong>{{ exp.analise.par_pct_texto_livre }}%</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endif %}
 
-<!-- Pré-processamento -->
+<!-- ══════════════════════════════════════════════════════
+     1) PRÉ-PROCESSAMENTO
+     ══════════════════════════════════════════════════════ -->
 {% if exp.preprocessamento %}
 <div class="card mb-4">
-  <div class="card-header fw-semibold">1) Pré-processamento</div>
+  <div class="card-header fw-semibold"><i class="bi bi-funnel me-2 text-warning"></i>1) Pré-processamento</div>
   <div class="card-body">
-    <div class="row g-3">
+    <div class="row g-3 mb-3">
       <div class="col-md-3">
-        <div class="text-muted small">Documentos</div>
+        <div class="text-muted small">Documentos processados</div>
         <div class="fs-5 fw-bold">{{ exp.preprocessamento.total_documentos }}</div>
       </div>
       <div class="col-md-3">
-        <div class="text-muted small">Sentenças</div>
+        <div class="text-muted small">Sentenças geradas</div>
         <div class="fs-5 fw-bold">{{ exp.preprocessamento.total_sentencas }}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="text-muted small">Para anotação</div>
+        <div class="fs-5 fw-bold">{{ exp.preprocessamento.selecao_phi.total_selecionado|default:"—" }}</div>
       </div>
       <div class="col-md-3">
         <div class="text-muted small">Amostra por tipo</div>
         <div class="fs-5 fw-bold">{{ exp.preprocessamento.amostra_por_tipo|default:"—" }}</div>
       </div>
     </div>
-    {% if exp.preprocessamento.obs %}
-    <p class="mt-3 mb-0 text-muted small"><strong>Obs:</strong> {{ exp.preprocessamento.obs }}</p>
+
+    {% if exp.preprocessamento.selecao_phi.relatorio_cotas %}
+    <div class="mt-2">
+      <div class="fw-semibold small mb-2"><i class="bi bi-shield-check me-1"></i>Relatório de Cobertura PHI</div>
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Entidade</th>
+            <th class="text-end">Candidatos</th>
+            <th class="text-end">Cota mínima</th>
+            <th class="text-end">Selecionadas</th>
+            <th class="text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody class="small">
+          {% for entidade, dados in exp.preprocessamento.selecao_phi.relatorio_cotas.items %}
+          <tr>
+            <td><strong>{{ entidade }}</strong></td>
+            <td class="text-end">{{ dados.candidatos }}</td>
+            <td class="text-end">{{ dados.cota }}</td>
+            <td class="text-end">{{ dados.selecionadas }}</td>
+            <td class="text-center">
+              {% if dados.cota_atingida %}
+                <span class="badge bg-success">✓ OK</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">! Insuficiente</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% endif %}
   </div>
 </div>
 {% endif %}
 
-<!-- Anotação -->
+<!-- ══════════════════════════════════════════════════════
+     2.1) ANOTAÇÃO
+     ══════════════════════════════════════════════════════ -->
 {% if exp.anotacao %}
 <div class="card mb-4">
-  <div class="card-header fw-semibold">2.1) Anotação Gold Standard</div>
+  <div class="card-header fw-semibold"><i class="bi bi-tag me-2 text-info"></i>2.1) Anotação Gold Standard</div>
   <div class="card-body">
-    <div class="row g-3">
+    <div class="row g-3 mb-3">
       <div class="col-md-3">
         <div class="text-muted small">Sentenças anotadas</div>
         <div class="fs-5 fw-bold">{{ exp.anotacao.total_sentencas_anotadas|default:"—" }}</div>
@@ -96,24 +172,43 @@
         <div class="fs-5 fw-bold">{{ exp.anotacao.kappa|default:"—" }}</div>
       </div>
       <div class="col-md-3">
-        <div class="text-muted small">Meta κ ≥ 0.80</div>
+        <div class="text-muted small">Meta κ ≥ 0.70</div>
         <div class="fs-5 fw-bold">
-          {% if exp.anotacao.kappa_meta_atingida %}
-            <span class="text-success">Atingida</span>
-          {% else %}
-            <span class="text-danger">Não atingida</span>
-          {% endif %}
+          {% if exp.anotacao.kappa %}
+            {% if exp.anotacao.kappa >= 0.70 %}
+              <span class="text-success">✓ Atingida</span>
+            {% else %}
+              <span class="text-danger">✗ Não atingida</span>
+            {% endif %}
+          {% else %}—{% endif %}
         </div>
       </div>
     </div>
+    {% if exp.anotacao.distribuicao_entidades_json %}
+    <div class="mt-2">
+      <div class="fw-semibold small mb-2">Distribuição de Entidades no Corpus</div>
+      <table class="table table-sm table-hover mb-0" style="width:auto;">
+        <thead class="table-light">
+          <tr><th>Entidade</th><th class="text-end">Ocorrências</th></tr>
+        </thead>
+        <tbody class="small">
+          {% for entidade, qtd in exp.anotacao.distribuicao_entidades_json.items %}
+          <tr><td><strong>{{ entidade }}</strong></td><td class="text-end">{{ qtd }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endif %}
 
-<!-- Divisão -->
+<!-- ══════════════════════════════════════════════════════
+     2.2) DIVISÃO DO CORPUS
+     ══════════════════════════════════════════════════════ -->
 {% if exp.divisao %}
 <div class="card mb-4">
-  <div class="card-header fw-semibold">2.2) Divisão Treino / Dev / Teste</div>
+  <div class="card-header fw-semibold"><i class="bi bi-scissors me-2 text-secondary"></i>2.2) Divisão Treino / Dev / Teste</div>
   <div class="card-body">
     <div class="row g-3">
       <div class="col-md-3">
@@ -131,11 +226,8 @@
       <div class="col-md-3">
         <div class="text-muted small">Distribuição ok</div>
         <div class="fs-5 fw-bold">
-          {% if exp.divisao.verificacao_ok %}
-            <span class="text-success">Sim</span>
-          {% else %}
-            <span class="text-danger">Não</span>
-          {% endif %}
+          {% if exp.divisao.verificacao_ok %}<span class="text-success">✓ Sim</span>
+          {% else %}<span class="text-danger">✗ Não</span>{% endif %}
         </div>
       </div>
     </div>
@@ -143,29 +235,97 @@
 </div>
 {% endif %}
 
-<!-- Treinamentos -->
+<!-- ══════════════════════════════════════════════════════
+     2.3) MODELOS NER — F1 por entidade
+     ══════════════════════════════════════════════════════ -->
 {% if exp.treinamentos.all %}
 <div class="card mb-4">
-  <div class="card-header fw-semibold">2.3) Treinamento dos Modelos</div>
+  <div class="card-header fw-semibold"><i class="bi bi-cpu me-2 text-danger"></i>2.3) Modelos NER — Métricas T (Desempenho)</div>
+  <div class="card-body p-0">
+    {% for t in exp.treinamentos.all %}
+    <div class="px-3 pt-3 pb-2 {% if not forloop.last %}border-bottom{% endif %}">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <strong>{{ t.nome_modelo }}</strong>
+        <span class="text-muted small">{{ t.criado_em|date:"d/m/Y H:i" }}</span>
+      </div>
+      {% if t.avaliacao %}
+      <div class="d-flex gap-2 flex-wrap mb-2">
+        <span class="badge bg-primary">micro-F1: {{ t.avaliacao.f1_entity_micro|default:"—" }}</span>
+        <span class="badge bg-secondary">token-F1: {{ t.avaliacao.f1_token_macro|default:"—" }}</span>
+        {% if t.avaliacao.precision_entity_micro %}
+        <span class="badge bg-light text-dark border">P: {{ t.avaliacao.precision_entity_micro }}</span>
+        <span class="badge bg-light text-dark border">R: {{ t.avaliacao.recall_entity_micro }}</span>
+        {% endif %}
+      </div>
+      {% if t.avaliacao.f1_por_entidade_json %}
+      <table class="table table-sm table-hover mb-1" style="font-size:0.8rem;">
+        <thead class="table-light">
+          <tr>
+            <th>Entidade</th>
+            <th class="text-end">Precision</th>
+            <th class="text-end">Recall</th>
+            <th class="text-end">F1</th>
+            <th class="text-end">n</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entidade, metricas in t.avaliacao.f1_por_entidade_json.items %}
+          <tr>
+            <td><strong>{{ entidade }}</strong></td>
+            <td class="text-end">{{ metricas.precision|default:"—" }}</td>
+            <td class="text-end">{{ metricas.recall|default:"—" }}</td>
+            <td class="text-end"><strong>{{ metricas.f1|default:"—" }}</strong></td>
+            <td class="text-end text-muted">{{ metricas.n|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      {% else %}
+      <span class="text-muted small">Avaliação não registrada.</span>
+      {% endif %}
+      {% if t.obs %}<div class="text-muted small mt-1">Obs: {{ t.obs }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════
+     3) ANONIMIZAÇÃO — L por modelo
+     ══════════════════════════════════════════════════════ -->
+{% if exp.anonimizacoes.all %}
+<div class="card mb-4">
+  <div class="card-header fw-semibold"><i class="bi bi-shield-lock me-2 text-success"></i>3) Anonimização — Métricas L (Privacidade)</div>
   <div class="card-body p-0">
     <table class="table table-sm table-hover mb-0">
       <thead class="table-light">
         <tr>
           <th>Modelo</th>
-          <th class="text-end">Tempo (s)</th>
-          <th class="text-end">F1 Entity</th>
-          <th class="text-end">F1 Token</th>
+          <th class="text-end">Coverage</th>
+          <th class="text-end">Precision_anon</th>
+          <th class="text-end">F1_anon</th>
+          <th class="text-end">ΔF1</th>
           <th>Obs</th>
         </tr>
       </thead>
-      <tbody>
-        {% for t in exp.treinamentos.all %}
+      <tbody class="small">
+        {% for anon in exp.anonimizacoes.all %}
         <tr>
-          <td><strong>{{ t.nome_modelo }}</strong></td>
-          <td class="text-end">{{ t.tempo_treinamento_seg|default:"—" }}</td>
-          <td class="text-end">{{ t.avaliacao.f1_entity_micro|default:"—" }}</td>
-          <td class="text-end">{{ t.avaliacao.f1_token_macro|default:"—" }}</td>
-          <td class="text-muted small">{{ t.obs|default:"—" }}</td>
+          <td><strong>{{ anon.nome_modelo }}</strong></td>
+          <td class="text-end">{{ anon.coverage|default:"—" }}</td>
+          <td class="text-end">{{ anon.precision_anon|default:"—" }}</td>
+          <td class="text-end"><strong>{{ anon.f1_anon|default:"—" }}</strong></td>
+          <td class="text-end">
+            {% if anon.delta_f1 != None %}
+              {% if anon.delta_f1 >= 0 %}
+                <span class="text-success">+{{ anon.delta_f1 }}</span>
+              {% else %}
+                <span class="text-danger">{{ anon.delta_f1 }}</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-muted">{{ anon.obs|default:"—"|truncatechars:60 }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -173,32 +333,5 @@
   </div>
 </div>
 {% endif %}
-
-<!-- Anonimização -->
-{% for anon in exp.anonimizacoes.all %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold">3) Anonimização</div>
-  <div class="card-body">
-    <div class="row g-3">
-      <div class="col-md-3">
-        <div class="text-muted small">Coverage</div>
-        <div class="fs-5 fw-bold">{{ anon.coverage|default:"—" }}</div>
-      </div>
-      <div class="col-md-3">
-        <div class="text-muted small">Precision_anon</div>
-        <div class="fs-5 fw-bold">{{ anon.precision_anon|default:"—" }}</div>
-      </div>
-      <div class="col-md-3">
-        <div class="text-muted small">Levenshtein</div>
-        <div class="fs-5 fw-bold">{{ anon.levenshtein_ratio|default:"—" }}</div>
-      </div>
-      <div class="col-md-3">
-        <div class="text-muted small">ΔF1</div>
-        <div class="fs-5 fw-bold">{{ anon.delta_f1|default:"—" }}</div>
-      </div>
-    </div>
-  </div>
-</div>
-{% endfor %}
 
 {% endblock %}

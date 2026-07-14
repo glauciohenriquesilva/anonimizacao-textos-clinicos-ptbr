@@ -7,6 +7,7 @@ urlpatterns = [
     # Análise Exploratória
     path('', views.index, name='index'),
     path('execucoes/', views.listar_execucoes, name='listar_execucoes'),
+    path('execucoes/<int:id>/', views.ver_execucao_analise, name='ver_execucao_analise'),
     path('execucoes/<int:id>/editar/', views.editar_execucao, name='editar_execucao'),
     path('execucoes/<int:id>/excluir/', views.excluir_execucao, name='excluir_execucao'),
     path('execucoes/<int:id>/exportar/csv/', views.exportar_csv, name='exportar_csv'),
@@ -21,4 +22,7 @@ urlpatterns = [
 
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
+
+    # Experimento ativo (sessão)
+    path('set-ativo/', views.set_experimento_ativo, name='set_experimento_ativo'),
 ]

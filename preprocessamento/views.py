@@ -1,8 +1,21 @@
 import os
+import re
 from django.shortcuts import render
 from django.http import FileResponse, Http404
 from .services.preprocessamento import executar_preprocessamento
 from .models import ExecucaoPreprocessamento
+from analise_exploratoria.models import Experimento
+
+
+def _slug_experimento(experimento):
+    """Converte o nome do experimento em slug seguro para nome de arquivo.
+    Ex: 'Experimento 002' → 'Experimento_002'
+    """
+    if not experimento:
+        return ''
+    slug = re.sub(r'[^\w\s-]', '', experimento.nome)   # remove caracteres especiais
+    slug = re.sub(r'[\s]+', '_', slug.strip())          # espaços → underscore
+    return slug + '_'
 
 OUTPUTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs', 'preprocessamento')
 
@@ -17,10 +30,15 @@ def index(request):
         n_total_raw          = request.POST.get('n_total_anotacao', '').strip()
         amostra              = int(amostra) if amostra else None
         n_total_anotacao     = int(n_total_raw) if n_total_raw.isdigit() else None
+        # Usa experimento ativo da sessão
+        exp_id      = request.session.get('experimento_ativo_id')
+        experimento = Experimento.objects.filter(pk=exp_id).first() if exp_id else None
 
         os.makedirs(OUTPUTS_DIR, exist_ok=True)
-        caminho_conll = os.path.join(OUTPUTS_DIR, 'corpus.conll')
-        caminho_jsonl = os.path.join(OUTPUTS_DIR, 'corpus.jsonl')
+        # Prefixo com nome do experimento para não sobrescrever outros experimentos
+        prefixo = _slug_experimento(experimento)
+        caminho_conll = os.path.join(OUTPUTS_DIR, f'{prefixo}corpus.conll')
+        caminho_jsonl = os.path.join(OUTPUTS_DIR, f'{prefixo}corpus.jsonl')
 
         resultado = executar_preprocessamento(
             arquivo_prescricoes=arquivo_prescricoes,
@@ -31,7 +49,7 @@ def index(request):
             n_total_anotacao=n_total_anotacao,
         )
 
-        ExecucaoPreprocessamento.objects.create(
+        defaults = dict(
             amostra_por_tipo  = amostra,
             total_documentos  = resultado['total_documentos'],
             total_sentencas   = resultado['total_sentencas'],
@@ -42,6 +60,11 @@ def index(request):
             caminho_anotacao  = resultado['caminho_anotacao'],
             selecao_phi       = resultado['selecao_phi'],
         )
+        # OneToOne → atualiza se já existir execução para este experimento
+        ExecucaoPreprocessamento.objects.update_or_create(
+            experimento=experimento,
+            defaults=defaults,
+        )
 
         contexto['resultado'] = resultado
 
@@ -49,10 +72,15 @@ def index(request):
 
 
 def baixar_arquivo(request, formato):
+    from analise_exploratoria.models import Experimento
+    exp_id      = request.session.get('experimento_ativo_id')
+    experimento = Experimento.objects.filter(pk=exp_id).first() if exp_id else None
+    prefixo     = _slug_experimento(experimento)
+
     nomes = {
-        'conll':    'corpus.conll',
-        'jsonl':    'corpus.jsonl',
-        'anotacao': 'corpus_anotacao.jsonl',
+        'conll':    f'{prefixo}corpus.conll',
+        'jsonl':    f'{prefixo}corpus.jsonl',
+        'anotacao': f'{prefixo}corpus_anotacao.jsonl',
     }
     if formato not in nomes:
         raise Http404

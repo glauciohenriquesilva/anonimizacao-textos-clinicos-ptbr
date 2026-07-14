@@ -23,6 +23,7 @@
                     <th>Pareceres</th>
                     <th>Pacientes</th>
                     <th>Hospitais</th>
+                    <th>Experimento</th>
                     <th>Observações</th>
                     <th></th>
                 </tr>
@@ -38,8 +39,15 @@
                     <td>{{ e.pacientes_unicos|floatformat:"0" }}</td>
                     <td>{{ e.total_hospitais }}</td>
                     <td>
+                        {% if e.experimento %}
+                            <span class="badge bg-secondary">{{ e.experimento.nome }}</span>
+                        {% else %}
+                            <span class="text-muted fst-italic">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
                         {% if e.obs %}
-                            <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ e.obs }}">
+                            <span class="text-truncate d-inline-block" style="max-width: 180px;" title="{{ e.obs }}">
                                 {{ e.obs }}
                             </span>
                         {% else %}
@@ -47,11 +55,15 @@
                         {% endif %}
                     </td>
                     <td class="text-end">
-                        <a href="{% url 'analise_exploratoria:editar_execucao' e.id %}" 
+                        <a href="{% url 'analise_exploratoria:ver_execucao_analise' e.id %}"
+                           class="btn btn-outline-primary btn-sm me-1" title="Ver resultado completo">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{% url 'analise_exploratoria:editar_execucao' e.id %}"
                            class="btn btn-outline-secondary btn-sm me-1" title="Editar observação">
                             <i class="bi bi-pencil"></i>
                         </a>
-                        <a href="{% url 'analise_exploratoria:excluir_execucao' e.id %}" 
+                        <a href="{% url 'analise_exploratoria:excluir_execucao' e.id %}"
                            class="btn btn-outline-danger btn-sm" title="Excluir">
                             <i class="bi bi-trash"></i>
                         </a>

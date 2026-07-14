@@ -27,7 +27,11 @@ OUTPUTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs'
 # Início - A) Anotador Integrado - A.1) Gestão de Sessões - A.1.3) Listar Sessões e Progresso
 @login_required
 def listar_sessoes(request):
-    sessoes = SessaoAnotacao.objects.all()
+    exp_id = request.session.get('experimento_ativo_id')
+    if exp_id:
+        sessoes = SessaoAnotacao.objects.filter(experimento_id=exp_id)
+    else:
+        sessoes = SessaoAnotacao.objects.all()
     # Adiciona progresso do usuário atual em cada sessão
     for sessao in sessoes:
         sessao.progresso = progresso_anotador(sessao, request.user)

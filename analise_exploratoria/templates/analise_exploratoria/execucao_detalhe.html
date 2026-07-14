@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}Análise Exploratória #{{ execucao.id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">
+    <i class="bi bi-bar-chart me-2 text-primary"></i>
+    Análise Exploratória #{{ execucao.id }}
+    {% if execucao.experimento %}
+      <span class="badge bg-secondary ms-2 fs-6">{{ execucao.experimento.nome }}</span>
+    {% endif %}
+  </h4>
+  <div class="d-flex gap-2">
+    {% if execucao.experimento %}
+    <a href="{% url 'analise_exploratoria:detalhe_experimento' execucao.experimento.id %}"
+       class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-journal-text me-1"></i>Ver Experimento
+    </a>
+    {% endif %}
+    <a href="{% url 'analise_exploratoria:listar_execucoes' %}" class="btn btn-outline-secondary btn-sm">
+      Voltar
+    </a>
+  </div>
+</div>
+
+<p class="text-muted small mb-4">
+  Executado em {{ execucao.criado_em|date:"d/m/Y \à\s H:i" }}
+  {% if execucao.obs %} · <em>{{ execucao.obs }}</em>{% endif %}
+</p>
+
+<!-- 0.2 Estatísticas Descritivas -->
+<h5 class="mb-3">0.2 Estatísticas Descritivas</h5>
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card h-100 border-start border-primary border-3">
+      <div class="card-body">
+        <div class="text-muted small">Total de Registros</div>
+        <div class="display-6 fw-bold">{{ execucao.total_registros }}</div>
+        <div class="text-muted small">{{ execucao.total_prescricoes }} prescrições · {{ execucao.total_pareceres }} pareceres</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 border-start border-primary border-3">
+      <div class="card-body">
+        <div class="text-muted small">Pacientes Únicos</div>
+        <div class="display-6 fw-bold">{{ execucao.pacientes_unicos }}</div>
+        <div class="text-muted small">cd_paciente distintos</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 border-start border-primary border-3">
+      <div class="card-body">
+        <div class="text-muted small">Período Coberto</div>
+        <div class="fs-5 fw-bold">{{ execucao.periodo_inicio|date:"d/m/Y" }} — {{ execucao.periodo_fim|date:"d/m/Y" }}</div>
+        <div class="text-muted small">dt_atendimento min/máx</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 border-start border-primary border-3">
+      <div class="card-body">
+        <div class="text-muted small">Hospitais / Unidades</div>
+        <div class="display-6 fw-bold">{{ execucao.total_hospitais }}</div>
+        <div class="text-muted small">ds_multi_empresa distintos</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 0.3 Distribuição de Tokens -->
+<h5 class="mb-3">0.3 Distribuição de Tokens</h5>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Tokens — Prescrições</h6>
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><td class="text-muted">Mínimo</td><td class="text-end fw-semibold">{{ execucao.tokens_presc_min }}</td></tr>
+            <tr><td class="text-muted">p25</td><td class="text-end fw-semibold">{{ execucao.tokens_presc_p25 }}</td></tr>
+            <tr><td class="text-muted">Mediana</td><td class="text-end fw-semibold text-warning">{{ execucao.tokens_presc_mediana }}</td></tr>
+            <tr><td class="text-muted">Média</td><td class="text-end fw-semibold">{{ execucao.tokens_presc_media }}</td></tr>
+            <tr><td class="text-muted">p75</td><td class="text-end fw-semibold">{{ execucao.tokens_presc_p75 }}</td></tr>
+            <tr><td class="text-muted">Máximo</td><td class="text-end fw-semibold">{{ execucao.tokens_presc_max }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Tokens — Pareceres</h6>
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><td class="text-muted">Mínimo</td><td class="text-end fw-semibold">{{ execucao.tokens_par_min }}</td></tr>
+            <tr><td class="text-muted">p25</td><td class="text-end fw-semibold">{{ execucao.tokens_par_p25 }}</td></tr>
+            <tr><td class="text-muted">Mediana</td><td class="text-end fw-semibold text-warning">{{ execucao.tokens_par_mediana }}</td></tr>
+            <tr><td class="text-muted">Média</td><td class="text-end fw-semibold">{{ execucao.tokens_par_media }}</td></tr>
+            <tr><td class="text-muted">p75</td><td class="text-end fw-semibold">{{ execucao.tokens_par_p75 }}</td></tr>
+            <tr><td class="text-muted">Máximo</td><td class="text-end fw-semibold">{{ execucao.tokens_par_max }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <!-- placeholder para estatísticas de caracteres — não persistidas atualmente -->
+    <div class="card h-100 border-dashed">
+      <div class="card-body text-center text-muted d-flex flex-column justify-content-center">
+        <i class="bi bi-info-circle fs-3 mb-2"></i>
+        <p class="small mb-0">Estatísticas de caracteres e sentenças são calculadas em tempo de execução e não persistidas. Re-execute a análise para visualizá-las.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 0.4 Classificação do Tipo de Texto -->
+<h5 class="mb-3">0.4 Classificação do Tipo de Texto</h5>
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Prescrições</h6>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span>Texto Livre</span>
+          <strong>{{ execucao.presc_pct_texto_livre }}% ({{ execucao.presc_texto_livre }})</strong>
+        </div>
+        <div class="progress mb-3" style="height:6px;">
+          <div class="progress-bar bg-primary" style="width:{{ execucao.presc_pct_texto_livre }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span>Template Estruturado</span>
+          <strong>{{ execucao.presc_pct_template }}% ({{ execucao.presc_template }})</strong>
+        </div>
+        <div class="progress" style="height:6px;">
+          <div class="progress-bar bg-secondary" style="width:{{ execucao.presc_pct_template }}%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title">Pareceres</h6>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span>Texto Livre</span>
+          <strong>{{ execucao.par_pct_texto_livre }}% ({{ execucao.par_texto_livre }})</strong>
+        </div>
+        <div class="progress mb-3" style="height:6px;">
+          <div class="progress-bar bg-primary" style="width:{{ execucao.par_pct_texto_livre }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span>Template Estruturado</span>
+          <strong>{{ execucao.par_pct_template }}% ({{ execucao.par_template }})</strong>
+        </div>
+        <div class="progress" style="height:6px;">
+          <div class="progress-bar bg-secondary" style="width:{{ execucao.par_pct_template }}%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

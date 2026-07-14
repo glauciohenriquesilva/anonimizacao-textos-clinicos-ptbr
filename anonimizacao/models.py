@@ -7,7 +7,8 @@ class ExecucaoAnonimizacao(models.Model):
         Experimento, on_delete=models.CASCADE,
         null=True, blank=True, related_name='anonimizacoes'
     )
-    criado_em = models.DateTimeField(auto_now_add=True)
+    criado_em   = models.DateTimeField(auto_now_add=True)
+    nome_modelo = models.CharField(max_length=100, blank=True, default='')  # ex: CRF, BERTimbau-leNER-large
 
     # 3.1 Substituição por Marcadores
     total_documentos_anonimizados = models.IntegerField()
@@ -36,5 +37,13 @@ class ExecucaoAnonimizacao(models.Model):
         verbose_name_plural = 'Execuções de Anonimização'
         ordering     = ['-criado_em']
 
+    @property
+    def f1_anon(self):
+        """F1 de anonimização = 2·Coverage·Precision_anon / (Coverage + Precision_anon)"""
+        c, p = self.coverage, self.precision_anon
+        if c and p and (c + p) > 0:
+            return round(2 * c * p / (c + p), 4)
+        return None
+
     def __str__(self):
-        return f'Anonimização {self.criado_em:%d/%m/%Y %H:%M} — Coverage={self.coverage}'
+        return f'Anonimização {self.criado_em:%d/%m/%Y %H:%M} [{self.nome_modelo}] Coverage={self.coverage}'

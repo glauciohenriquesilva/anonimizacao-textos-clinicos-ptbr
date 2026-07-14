@@ -46,12 +46,15 @@ def _varrer_arquivos(extensao, *subpastas):
 
 # Início - 2) NER - Interface Django - Anotação
 def anotacao(request):
-    contexto = {}
-
-    contexto['arquivos_jsonl'] = _varrer_arquivos('.jsonl', 'preprocessamento', 'ner')
+    contexto = {
+        'arquivos_jsonl': _varrer_arquivos('.jsonl', 'preprocessamento', 'ner'),
+    }
 
     if request.method == 'POST':
-        acao = request.POST.get('acao')
+        acao        = request.POST.get('acao')
+        # Usa experimento ativo da sessão
+        exp_id      = request.session.get('experimento_ativo_id')
+        experimento = Experimento.objects.filter(pk=exp_id).first() if exp_id else None
         os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
         if acao == 'selecionar':
@@ -64,7 +67,10 @@ def anotacao(request):
                 for registro in amostra:
                     f.write(json.dumps(registro, ensure_ascii=False) + '\n')
 
-            ExecucaoAnotacao.objects.create(total_sentencas_amostra=len(amostra))
+            ExecucaoAnotacao.objects.create(
+                experimento=experimento,
+                total_sentencas_amostra=len(amostra),
+            )
             contexto['amostra_gerada'] = True
             contexto['total_amostra']  = len(amostra)
 
@@ -95,8 +101,7 @@ def anotacao(request):
 
 # Início - 2) NER - Interface Django - Divisão
 def divisao(request):
-    experimentos = Experimento.objects.all().order_by('-criado_em')
-    contexto = {'experimentos': experimentos}
+    contexto = {}
 
     if request.method == 'POST':
         arquivo = request.FILES.get('arquivo_conll')
@@ -105,8 +110,9 @@ def divisao(request):
             contexto['erro'] = 'Selecione um arquivo CoNLL antes de executar.'
             return render(request, 'ner/divisao.html', contexto)
 
-        experimento_id = request.POST.get('experimento_id')
-        experimento    = Experimento.objects.filter(id=experimento_id).first() if experimento_id else None
+        # Usa experimento ativo da sessão
+        exp_id      = request.session.get('experimento_ativo_id')
+        experimento = Experimento.objects.filter(pk=exp_id).first() if exp_id else None
 
         # Salva o arquivo enviado em outputs/ner/ antes de processar
         os.makedirs(OUTPUTS_DIR, exist_ok=True)
@@ -156,8 +162,7 @@ def divisao(request):
 
 # Início - 2) NER - Interface Django - Treinamento CRF
 def treinamento(request):
-    experimentos = Experimento.objects.all().order_by('-criado_em')
-    contexto = {'experimentos': experimentos}
+    contexto = {}
 
     if request.method == 'POST':
         arquivo = request.FILES.get('arquivo_conll')
@@ -166,8 +171,9 @@ def treinamento(request):
             contexto['erro'] = 'Selecione o arquivo train.conll antes de executar.'
             return render(request, 'ner/treinamento.html', contexto)
 
-        experimento_id = request.POST.get('experimento_id')
-        experimento    = Experimento.objects.filter(id=experimento_id).first() if experimento_id else None
+        # Usa experimento ativo da sessão
+        exp_id      = request.session.get('experimento_ativo_id')
+        experimento = Experimento.objects.filter(pk=exp_id).first() if exp_id else None
 
         # Salva o arquivo de treino enviado em outputs/ner/
         os.makedirs(OUTPUTS_DIR, exist_ok=True)

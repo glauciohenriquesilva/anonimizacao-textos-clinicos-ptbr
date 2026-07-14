@@ -1,6 +1,5 @@
 import json, io, csv
-from django.shortcuts import render
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.http import HttpResponse
 from .services.exploracao import (
@@ -9,7 +8,6 @@ from .services.exploracao import (
     contar_registros,
     contar_pacientes_unicos,
     periodo_coberto,
-    top_especialidades,
     contar_hospitais,
     calcular_distribuicao_tokens,
     calcular_distribuicao_caracteres,
@@ -26,7 +24,10 @@ def index(request):
 
     if request.method == 'POST':
         arquivo_prescricoes = request.FILES.get('arquivo_prescricoes')
-        arquivo_pareceres = request.FILES.get('arquivo_pareceres')
+        arquivo_pareceres   = request.FILES.get('arquivo_pareceres')
+        # Usa experimento ativo da sessão
+        exp_id      = request.session.get('experimento_ativo_id')
+        experimento = Experimento.objects.filter(pk=exp_id).first() if exp_id else None
 
         df_prescricoes = ler_prescricoes(arquivo_prescricoes)
         df_pareceres = ler_pareceres(arquivo_pareceres)
@@ -34,12 +35,6 @@ def index(request):
         registros = contar_registros(df_prescricoes, df_pareceres)
         pacientes = contar_pacientes_unicos(df_prescricoes, df_pareceres)
         periodo = periodo_coberto(df_prescricoes, df_pareceres)
-        especialidades = top_especialidades(df_prescricoes, df_pareceres)
-
-        # Prepara dados para Chart.js (0.5.3)
-        especialidades_labels = especialidades.index.tolist()
-        especialidades_valores = [int(v) for v in especialidades.values]        
-
         hospitais = contar_hospitais(df_prescricoes, df_pareceres)
         tokens_presc = calcular_distribuicao_tokens(df_prescricoes, 'ds_evolucao')
         tokens_par = calcular_distribuicao_tokens(df_pareceres, 'ds_parecer')
@@ -52,44 +47,43 @@ def index(request):
         histograma_presc = calcular_histograma_tokens(df_prescricoes, 'ds_evolucao')
         histograma_par   = calcular_histograma_tokens(df_pareceres, 'ds_parecer')
 
-        # Salva no banco
-        execucao = ExecucaoAnalise.objects.create(
-            total_registros=registros['total'],
-            total_prescricoes=registros['prescricoes'],
-            total_pareceres=registros['pareceres'],
-            pacientes_unicos=pacientes,
-            periodo_inicio=periodo['inicio'],
-            periodo_fim=periodo['fim'],
-            total_hospitais=hospitais,
-            tokens_presc_min=tokens_presc['min'],
-            tokens_presc_media=tokens_presc['media'],
-            tokens_presc_mediana=tokens_presc['mediana'],
-            tokens_presc_max=tokens_presc['max'],
-            tokens_presc_p25=tokens_presc['p25'],
-            tokens_presc_p75=tokens_presc['p75'],
-            tokens_par_min=tokens_par['min'],
-            tokens_par_media=tokens_par['media'],
-            tokens_par_mediana=tokens_par['mediana'],
-            tokens_par_max=tokens_par['max'],
-            tokens_par_p25=tokens_par['p25'],
-            tokens_par_p75=tokens_par['p75'],
-            presc_texto_livre=tipos_presc['texto_livre'],
-            presc_template=tipos_presc['template_estruturado'],
-            presc_pct_texto_livre=tipos_presc['pct_texto_livre'],
-            presc_pct_template=tipos_presc['pct_template'],
-            par_texto_livre=tipos_par['texto_livre'],
-            par_template=tipos_par['template_estruturado'],
-            par_pct_texto_livre=tipos_par['pct_texto_livre'],
-            par_pct_template=tipos_par['pct_template'],
-            especialidades_json=dict(zip(especialidades_labels, especialidades_valores)),
+        # Salva no banco — update_or_create para suportar reexecução sem IntegrityError
+        execucao, _ = ExecucaoAnalise.objects.update_or_create(
+            experimento=experimento,
+            defaults=dict(
+                total_registros=registros['total'],
+                total_prescricoes=registros['prescricoes'],
+                total_pareceres=registros['pareceres'],
+                pacientes_unicos=pacientes,
+                periodo_inicio=periodo['inicio'],
+                periodo_fim=periodo['fim'],
+                total_hospitais=hospitais,
+                tokens_presc_min=tokens_presc['min'],
+                tokens_presc_media=tokens_presc['media'],
+                tokens_presc_mediana=tokens_presc['mediana'],
+                tokens_presc_max=tokens_presc['max'],
+                tokens_presc_p25=tokens_presc['p25'],
+                tokens_presc_p75=tokens_presc['p75'],
+                tokens_par_min=tokens_par['min'],
+                tokens_par_media=tokens_par['media'],
+                tokens_par_mediana=tokens_par['mediana'],
+                tokens_par_max=tokens_par['max'],
+                tokens_par_p25=tokens_par['p25'],
+                tokens_par_p75=tokens_par['p75'],
+                presc_texto_livre=tipos_presc['texto_livre'],
+                presc_template=tipos_presc['template_estruturado'],
+                presc_pct_texto_livre=tipos_presc['pct_texto_livre'],
+                presc_pct_template=tipos_presc['pct_template'],
+                par_texto_livre=tipos_par['texto_livre'],
+                par_template=tipos_par['template_estruturado'],
+                par_pct_texto_livre=tipos_par['pct_texto_livre'],
+                par_pct_template=tipos_par['pct_template'],
+            ),
         )
 
         contexto['registros'] = registros
         contexto['pacientes_unicos'] = pacientes
         contexto['periodo'] = periodo
-        contexto['especialidades'] = especialidades
-        contexto['especialidades_labels'] = especialidades_labels
-        contexto['especialidades_valores'] = especialidades_valores        
         contexto['hospitais'] = hospitais
         contexto['tokens_prescricoes'] = tokens_presc
         contexto['tokens_pareceres'] = tokens_par
@@ -106,8 +100,16 @@ def index(request):
     return render(request, 'analise_exploratoria/index.html', contexto)
 
 def listar_execucoes(request):
-    execucoes = ExecucaoAnalise.objects.all()
+    exp_id = request.session.get('experimento_ativo_id')
+    if exp_id:
+        execucoes = ExecucaoAnalise.objects.filter(experimento_id=exp_id)
+    else:
+        execucoes = ExecucaoAnalise.objects.all()
     return render(request, 'analise_exploratoria/execucoes_lista.html', {'execucoes': execucoes})
+
+def ver_execucao_analise(request, id):
+    execucao = get_object_or_404(ExecucaoAnalise, id=id)
+    return render(request, 'analise_exploratoria/execucao_detalhe.html', {'execucao': execucao})
 
 def editar_execucao(request, id):
     execucao = get_object_or_404(ExecucaoAnalise, id=id)
@@ -173,7 +175,6 @@ def exportar_json(request, id):
             'periodo_inicio': str(e.periodo_inicio),
             'periodo_fim': str(e.periodo_fim),
             'total_hospitais': e.total_hospitais,
-            'top_especialidades': e.especialidades_json,
         },
         'distribuicao_tokens': {
             'prescricoes': {'min': e.tokens_presc_min, 'media': e.tokens_presc_media, 'mediana': e.tokens_presc_mediana, 'max': e.tokens_presc_max, 'p25': e.tokens_presc_p25, 'p75': e.tokens_presc_p75},
@@ -205,14 +206,22 @@ def novo_experimento(request):
         nome      = request.POST.get('nome')
         descricao = request.POST.get('descricao', '')
         obs       = request.POST.get('obs', '')
-        Experimento.objects.create(nome=nome, descricao=descricao, obs=obs)
-        messages.success(request, 'Experimento criado com sucesso.')
-        return redirect('analise_exploratoria:listar_experimentos')
+        exp = Experimento.objects.create(nome=nome, descricao=descricao, obs=obs)
+        # Ativa automaticamente o experimento recém-criado na sessão
+        request.session['experimento_ativo_id'] = exp.pk
+        messages.success(request, f'Experimento "{exp.nome}" criado e definido como ativo.')
+        return redirect('analise_exploratoria:index')
     return render(request, 'analise_exploratoria/experimento_form.html', {'acao': 'Novo'})
 
 
 def detalhe_experimento(request, id):
-    exp = get_object_or_404(Experimento, id=id)
+    exp = get_object_or_404(
+        Experimento.objects.prefetch_related(
+            'treinamentos__avaliacao',
+            'anonimizacoes',
+        ).select_related('analise', 'preprocessamento', 'anotacao', 'divisao'),
+        id=id,
+    )
     return render(request, 'analise_exploratoria/experimento_detalhe.html', {'exp': exp})
 
 
@@ -236,6 +245,23 @@ def excluir_experimento(request, id):
         return redirect('analise_exploratoria:listar_experimentos')
     return render(request, 'analise_exploratoria/experimento_excluir.html', {'exp': exp})
 # Fim - CRUD Experimento
+
+
+# Início - Experimento Ativo (sessão)
+def set_experimento_ativo(request):
+    """
+    Salva o experimento selecionado na sessão Django.
+    Redireciona de volta para a página que originou a chamada.
+    """
+    if request.method == 'POST':
+        exp_id = request.POST.get('experimento_id', '').strip()
+        if exp_id:
+            request.session['experimento_ativo_id'] = int(exp_id)
+        else:
+            request.session.pop('experimento_ativo_id', None)
+    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER', '/')
+    return redirect(next_url)
+# Fim - Experimento Ativo (sessão)
 
 
 # Início - Dashboard comparativo
