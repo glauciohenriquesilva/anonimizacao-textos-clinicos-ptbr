@@ -69,13 +69,73 @@ def colapsar_espacos(texto):
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.3) Colapso de espaços múltiplos e tabs
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4) Normalização de datas → ISO 8601
+MESES_PT = {
+    'janeiro': 1, 'fevereiro': 2, 'marco': 3, 'março': 3, 'abril': 4,
+    'maio': 5, 'junho': 6, 'julho': 7, 'agosto': 8, 'setembro': 9,
+    'outubro': 10, 'novembro': 11, 'dezembro': 12,
+}
+
+
 def normalizar_datas_no_texto(texto):
+    r"""
+    Converte datas em formato textual para ISO 8601 (YYYY-MM-DD), em cinco passadas:
+
+      1) Barra: dd/mm/yy(yy), tolera espaços ao redor das barras (ex: "13 / 07 / 22")
+         Bug identificado 16/07/2026: o regex original exigia dígitos colados na barra
+         e perdia todo esse formato, comum em templates de admissão/rotina do MV.
+
+      2) Hífen/travessão: dd-mm-yy(yy), aceita tanto hífen "-" quanto travessão "–" (U+2013),
+         tolera espaços ao redor (ex: "17 - 05 - 17", "5 – 9 – 2016")
+         Identificado 16/07/2026. Como hífen é usado com muita frequência em faixas de
+         valores clínicos (PA, exames laboratoriais), essa passada EXIGE que dia (1-31)
+         e mês (1-12) sejam plausíveis antes de converter — evita falso positivo em
+         sequências como "120 - 80 - 70".
+
+      3) Barra invertida: dd\mm\yy(yy) (ex: "16 \ 03 \ 22")
+         Identificado 21/07/2026 em auditoria geral de anotação — sistema MV às vezes usa
+         "\" como separador em vez de "/" ou "-", provavelmente artefato de digitação ou
+         de exportação do MV. Mesma validação de dia (1-31) e mês (1-12) da passada de
+         hífen, pelo mesmo motivo (evitar falso positivo).
+
+      4) Ponto: dd.mm.yy(yy) (ex: "24.10.2016", "5.9.16")
+         Identificado 24/07/2026 durante anotação manual do Exp 002. Mesma validação de
+         dia (1-31) e mês (1-12) das passadas de hífen e barra invertida — exigir os DOIS
+         pontos literais (formato completo dd.mm.yyyy) evita falso positivo com separador
+         de milhar ("1.234.567"), decimal isolado com ponto ("36.5") e código CID ("I10.0"),
+         nenhum dos quais tem dois pontos formando três grupos numéricos plausíveis de
+         dia/mês/ano.
+         Bug identificado 24/07/2026 na auditoria de regeneração do corpus (Task #25):
+         colidia com telefone no formato "DDD.9.XXXX.YYYY" (ex: "21.9.7390.1882") — os
+         três primeiros grupos ("21.9.7390") passavam na validação de dia/mês/ano por
+         coincidência numérica e viravam data, deixando o quarto grupo (".1882") órfão.
+         Corrigido com lookahead negativo `(?!\.\d)`: só converte se NÃO houver mais um
+         ".dígito" imediatamente depois — datas reais não têm um quarto grupo numérico
+         colado, telefones nesse formato sempre têm.
+
+      5) Por extenso: "dd DE <mês> DE yyyy" (ex: "17 DE MAIO DE 2016")
+         Identificado 16/07/2026. Comum em rodapés/assinaturas de laudo. Usa dicionário
+         MESES_PT (case-insensitive) para mapear o nome do mês.
+
+    Proteção de idempotência (identificado 24/07/2026 na regeneração do corpus, Task #25):
+      Esta função NÃO era segura para rodar duas vezes sobre o mesmo texto. Se o texto já
+      contém datas ISO de uma passada anterior (ex: sentenças antigas já normalizadas), a
+      Passada 2 (hífen) podia reinterpretar um INTERVALO de duas datas ISO separadas por um
+      hífen solto (ex: "2026-01-29 - 2026-02-04", "de X até Y") como uma única data mal
+      formada, embaralhando os dígitos ("2026-2026-01-29-02-04"). Corrigido mascarando
+      qualquer data ISO já presente ANTES das 5 passadas, protegendo-a de reinterpretação —
+      essencial porque a regeneração do corpus reprocessa texto que já passou pelo pipeline.
+    """
     if not isinstance(texto, str):
         return ''
-    # Grupo 4 captura o horário opcional para preservá-lo após a conversão da data
-    padrao = re.compile(r'\b(\d{1,2})/(\d{1,2})/(\d{2,4})(?:\s+(\d{2}:\d{2}))?\b')
 
-    def substituir(match):
+    # Protecao de idempotencia: mascara datas ISO ja existentes antes das passadas,
+    # para nao serem reinterpretadas por engano pelas passadas de hifen/barra/ponto
+    texto = re.sub(r'\b(\d{4}-\d{2}-\d{2})\b', '__DATA__', texto)
+
+    # Passada 1 — barra: dd/mm/yy(yy), com horário opcional (grupo 4)
+    padrao_barra = re.compile(r'\b(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{2,4})(?:\s+(\d{2}:\d{2}))?\b')
+
+    def substituir_barra(match):
         p1, p2, p3 = match.group(1), match.group(2), match.group(3)
         hora = match.group(4)  # None se não houver horário
         n1, n2, n3 = int(p1), int(p2), int(p3)
@@ -94,7 +154,79 @@ def normalizar_datas_no_texto(texto):
         except (ValueError, OverflowError):
             return match.group(0)
 
-    return padrao.sub(substituir, texto)
+    texto = padrao_barra.sub(substituir_barra, texto)
+
+    # Passada 2 — hífen/travessão: dd-mm-yy(yy), com validação de dia (1-31) e mês (1-12)
+    # Aceita "-" (hífen ASCII) e "–" (travessão U+2013, comum em texto colado de Word/planilha)
+    padrao_hifen = re.compile(r'\b(\d{1,2})\s*[-–]\s*(\d{1,2})\s*[-–]\s*(\d{2,4})\b')
+
+    def substituir_hifen(match):
+        p1, p2, p3 = match.group(1), match.group(2), match.group(3)
+        n1, n2, n3 = int(p1), int(p2), int(p3)
+        ano = n3 if len(p3) == 4 else 2000 + n3
+        for dia, mes in ((n1, n2), (n2, n1)):
+            if 1 <= dia <= 31 and 1 <= mes <= 12:
+                try:
+                    return f'{ano:04d}-{mes:02d}-{dia:02d}'
+                except (ValueError, OverflowError):
+                    continue
+        return match.group(0)  # nenhuma combinação plausível — mantém original
+
+    texto = padrao_hifen.sub(substituir_hifen, texto)
+
+    # Passada 3 — barra invertida: dd\mm\yy(yy), com a mesma validação de dia/mês da
+    # passada de hífen (evita falso positivo, já que "\" também aparece em outros
+    # contextos do texto clínico, ex. anotações livres com barras diversas)
+    padrao_barra_invertida = re.compile(r'\b(\d{1,2})\s*\\\s*(\d{1,2})\s*\\\s*(\d{2,4})\b')
+
+    def substituir_barra_invertida(match):
+        p1, p2, p3 = match.group(1), match.group(2), match.group(3)
+        n1, n2, n3 = int(p1), int(p2), int(p3)
+        ano = n3 if len(p3) == 4 else 2000 + n3
+        for dia, mes in ((n1, n2), (n2, n1)):
+            if 1 <= dia <= 31 and 1 <= mes <= 12:
+                try:
+                    return f'{ano:04d}-{mes:02d}-{dia:02d}'
+                except (ValueError, OverflowError):
+                    continue
+        return match.group(0)
+
+    texto = padrao_barra_invertida.sub(substituir_barra_invertida, texto)
+
+    # Passada 4 — ponto: dd.mm.yy(yy), com a mesma validação de dia/mês das passadas de
+    # hífen e barra invertida. Exigir os dois pontos literais (três grupos numéricos)
+    # evita falso positivo com separador de milhar, decimal isolado ou código CID.
+    padrao_ponto = re.compile(r'\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b(?!\.\d)')
+
+    def substituir_ponto(match):
+        p1, p2, p3 = match.group(1), match.group(2), match.group(3)
+        n1, n2, n3 = int(p1), int(p2), int(p3)
+        ano = n3 if len(p3) == 4 else 2000 + n3
+        for dia, mes in ((n1, n2), (n2, n1)):
+            if 1 <= dia <= 31 and 1 <= mes <= 12:
+                try:
+                    return f'{ano:04d}-{mes:02d}-{dia:02d}'
+                except (ValueError, OverflowError):
+                    continue
+        return match.group(0)
+
+    texto = padrao_ponto.sub(substituir_ponto, texto)
+
+    # Passada 5 — por extenso: "dd DE <mês> DE yyyy"
+    nomes_meses = '|'.join(MESES_PT.keys())
+    padrao_extenso = re.compile(rf'\b(\d{{1,2}})\s+DE\s+({nomes_meses})\s+DE\s+(\d{{4}})\b', re.IGNORECASE)
+
+    def substituir_extenso(match):
+        dia = int(match.group(1))
+        mes = MESES_PT[match.group(2).lower()]
+        ano = int(match.group(3))
+        if 1 <= dia <= 31:
+            return f'{ano:04d}-{mes:02d}-{dia:02d}'
+        return match.group(0)
+
+    texto = padrao_extenso.sub(substituir_extenso, texto)
+
+    return texto
 
 def mascarar_datas_horas(texto):
     """
@@ -217,6 +349,86 @@ def corrigir_erros_digitacao(texto):
         Campos em branco de formulários clínicos (templates de UTI/enfermagem).
         Ex: "______" → " "  |  Não afeta __DATA__, __HORA__ (tem letras entre os underscores)
 
+      Padrão 6 — MAIÚSCULA colada ao dia de uma data dd/mm/yy(yy) (identificado 16/07/2026
+        durante anotação manual do Exp 002)
+        Ex: "INFECTOLOGIA15 / 03 / 24" → "INFECTOLOGIA 15 / 03 / 24"
+            "ESQUERDA03 / 04 / 24" → "ESQUERDA 03 / 04 / 24"
+            "FLOGISTICOS13 / 04 / 24" → "FLOGISTICOS 13 / 04 / 24"
+        Exige o padrão de data completo (dd / mm / yy) à direita para evitar falsos positivos
+        (ex.: "COVID19" sozinho não é afetado, pois não é seguido de " / mm / yy").
+        Após a correção, a data separada passa a ser capturada corretamente por mascarar_data().
+        v2 (corrigido 24/07/2026, caso "ESQ30 / 05 / 22"): o limiar original exigia
+        MAIÚSCULA≥4, herdado do Padrão 1 — mas nesse caso a âncora de segurança já é o
+        padrão de data completo à direita (mesmo raciocínio do Padrão 7, que nunca teve
+        limiar mínimo), então abreviações curtas como "ESQ" (3 letras) ficavam de fora
+        sem necessidade. Removido o limiar para espelhar exatamente o Padrão 7 — qualquer
+        sequência de maiúsculas colada a uma data completa é, na prática, sempre uma
+        contaminação, independente do tamanho da palavra.
+
+      Padrão 7 — data dd/mm/yy(yy) colada em MAIÚSCULA subsequente (novo — identificado 16/07/2026,
+        variante espelhada do Padrão 6; quantificação pendente — a levantar no corpus completo)
+        Ex: "21 / 01 / 2018FOI SOLICITADO" → "21 / 01 / 2018 FOI SOLICITADO"
+            "03 / 04 / 24COTO DE AMPUTAÇÃO" → "03 / 04 / 24 COTO DE AMPUTAÇÃO"
+        Diferente do Padrão 1 (que exige MAIÚSCULA≥4), aqui não há limiar mínimo de letras,
+        pois a âncora é o padrão de data completo à esquerda (elimina ambiguidade mesmo com
+        palavras curtas como "FOI").
+
+      Padrão 10 — Palavra.Palavra colada, generalização do Padrão 2 (novo — identificado
+        21/07/2026 durante anotação manual do Exp 002; quantificação pendente)
+        Ex: "agressor.Maria informa" → "agressor. Maria informa"
+            "Rodrigues.Realizo" → "Rodrigues. Realizo"
+            "Social.Mylena" → "Social. Mylena"
+        Diferente do Padrão 2 (que exige a palavra depois do ponto em MAIÚSCULA≥4, pensado
+        para cabeçalho de seção colado), aqui a palavra antes do ponto pode ser MAIÚSCULA
+        ou minúscula, e a palavra depois só precisa começar com maiúscula (Título-Caso ou
+        ALL-CAPS, sem limiar mínimo de tamanho) — cobre texto livre com fim de frase colado
+        ao início da frase seguinte, o caso mais crítico do ponto de vista de PHI: um nome
+        de pessoa preso dentro de um token contaminado é invisível tanto ao regex quanto ao
+        NER, então esse é o único padrão dos 10 documentados que resolve a causa raiz de um
+        problema de privacidade (não só de qualidade de anotação/treino) — sem essa correção,
+        o nome permanece re-identificável no texto processado independente de como o token
+        contaminado for rotulado no gold standard.
+        Exige 2+ letras antes do ponto para não afetar abreviações de uma letra coladas em
+        maiúscula (ex.: "V.V" continua intocado).
+
+      Padrão 8 — Palavra,Palavra colada por vírgula sem espaço (identificado 21/07/2026,
+        corrigido no mesmo dia)
+        Ex: "pessoal,clínico" → "pessoal, clínico"
+            "MIRIAN,MIRENEZ" → "MIRIAN, MIRENEZ"  (dois nomes de pessoa colados)
+            "CIRURGIA.ATT,FABIANA" → "CIRURGIA.ATT, FABIANA"
+        Mais simples que o Padrão 10: qualquer letra (maiúscula ou minúscula) colada
+        direto numa vírgula é, na prática, sempre um espaço faltando — não há uso
+        legítimo de vírgula sem espaço seguida de letra no português (diferente do
+        ponto, que tem clusters de abreviação como "SOPROS.AP"). Por isso não precisa
+        do cuidado extra de restringir a Título-Caso: qualquer caractere alfabético
+        depois da vírgula já é suficiente. Exigir que o caractere seguinte seja uma
+        LETRA (não dígito) já protege automaticamente números decimais em notação
+        brasileira ("36,5", "120,5") e milhares ("12.345,678"), que continuam intocados.
+
+      Padrão 11 — Lista de datas dd/mm coladas por vírgula (identificado 21/07/2026,
+        corrigido no mesmo dia)
+        Ex: "24/05,26/05" → "24/05, 26/05"
+        Duas datas sem ano (formato "dd/mm sem ano", já documentado como exceção manual)
+        numa lista separada por vírgula sem espaço — comum em registros de retorno/consulta
+        com múltiplas datas. Diferente do Padrão 8 (que exige letras nos dois lados da
+        vírgula, para não confundir com decimal/milhar), aqui a âncora é a barra "/" dos
+        dois lados — só dispara quando o padrão completo "dd/mm" aparece antes E depois da
+        vírgula, o que nunca ocorre em notação decimal brasileira (que não tem barra).
+
+      Padrão 12 — Dígito(s).MAIÚSCULA≥4 colado (identificado 24/07/2026 durante anotação
+        manual do Exp 002, caso "07 / 02.SEGUNDO")
+        Ex: "02.SEGUNDO" → "02. SEGUNDO"  |  "10.DEMANDA" → "10. DEMANDA"
+        Generalização dos Padrões 2/3 (que tratam palavra.MAIÚSCULA e MAIÚSCULA.MAIÚSCULA)
+        para o caso em que o lado esquerdo do ponto é numérico — típico de item de lista/
+        campo numerado colado ao rótulo seguinte sem espaço (ex.: campo "02." de um
+        formulário seguido do rótulo "SEGUNDO" em caixa alta). Importante quando o número
+        faz parte de uma data parcial "dd/mm sem ano" (exceção manual já documentada): sem
+        este fix, o dia da data fica preso dentro de um token contaminado e não pode ser
+        anotado corretamente como DATA. O limiar MAIÚSCULA≥4 (mesmo dos Padrões 1/2)
+        preserva abreviações curtas (ex.: "3.OBS", "01.HDA") intocadas, e a exigência de
+        letras (não dígitos) após o ponto evita qualquer conflito com decimais ("37.8") ou
+        códigos CID ("I10.0").
+
     Referencias metodologicas:
       - Apostolova et al. (2009) — Detection of sentence boundaries and abbreviations in
         clinical narratives. PMC4474545. (problema do ponto ambiguo no texto clinico)
@@ -251,6 +463,50 @@ def corrigir_erros_digitacao(texto):
     # Padrão 5: sequencias puras de >=3 underscores (campos em branco de templates)
     # "______" → " " | nao afeta __DATA__, __HORA__ etc. (max 2 underscores seguidos)
     texto = re.sub(r'_{3,}', ' ', texto)
+
+    # Padrão 6: MAIUSCULA colada ao dia de uma data dd/mm/yy(yy) (16/07/2026)
+    # "INFECTOLOGIA15 / 03 / 24" → "INFECTOLOGIA 15 / 03 / 24" | "ESQ30 / 05 / 22" → "ESQ 30 / 05 / 22"
+    # Exige o padrão de data completo a direita (evita falso positivo tipo "COVID19" isolado)
+    # v2 (24/07/2026): sem limiar minimo de letras -- a data completa a direita ja e a ancora
+    # de seguranca, mesmo raciocinio do Padrao 7 (logo abaixo), que nunca teve limiar
+    texto = re.sub(rf'({M}+)(\d{{1,2}})(\s*/\s*\d{{1,2}}\s*/\s*\d{{2,4}}\b)', r'\1 \2\3', texto)
+
+    # Padrão 7: data dd/mm/yy(yy) colada em MAIUSCULA subsequente (novo — 16/07/2026)
+    # "21 / 01 / 2018FOI" → "21 / 01 / 2018 FOI" — sem limiar minimo de letras (ancora e a data completa)
+    texto = re.sub(rf'(\d{{1,2}}\s*/\s*\d{{1,2}}\s*/\s*\d{{2,4}})({M}+)', r'\1 \2', texto)
+
+    # Padrão 10: qualquer palavra (>=2 letras) + ponto colado + palavra em Titulo-Caso
+    # (generalizacao do Padrao 2 -- novo, 21/07/2026)
+    # "agressor.Maria" -> "agressor. Maria" | "Rodrigues.Realizo" -> "Rodrigues. Realizo"
+    # Exige 2+ letras antes do ponto para preservar abreviacoes de 1 letra (ex: "V.V").
+    # A palavra depois do ponto TEM que ser Titulo-Caso (maiuscula + minusculas) -- nao
+    # ALL-CAPS -- para nao quebrar clusters de abreviacao ja protegidos pelo Padrao 3
+    # (ex: "SOPROS.AP", "VMG.MMII"), que nunca aparecem em Titulo-Caso neste corpus.
+    texto = re.sub(rf'([A-Za-zÀ-ÿ]{{2,}})\.({M}{m}+)', r'\1. \2', texto)
+
+    # Padrão 8: qualquer palavra (>=2 letras) + virgula colada + palavra (qualquer caso)
+    # -- novo, 21/07/2026. Diferente do Padrao 10, nao precisa restringir a Titulo-Caso:
+    # virgula colada em letra nunca eh legitima em portugues (decimais/milhares usam
+    # digito depois da virgula, ja protegidos por exigir letra no grupo seguinte).
+    # v2 (corrigido 21/07/2026): usa lookahead em vez de capturar a palavra seguinte,
+    # para nao "consumir" essa palavra e deixa-la disponivel como inicio do proximo
+    # match -- sem isso, cadeias de 3+ palavras coladas (ex: "HEUE,CIANOSE,FEBRIL")
+    # so tinham a primeira virgula corrigida, porque re.sub nao reaproveita caracteres
+    # ja consumidos por um match anterior.
+    texto = re.sub(r'([A-Za-zÀ-ÿ]{2,}),(?=[A-Za-zÀ-ÿ])', r'\1, ', texto)
+
+    # Padrão 11: lista de datas dd/mm coladas por virgula, sem espaco -- novo, 21/07/2026
+    # "24/05,26/05" -> "24/05, 26/05" -- ancora e a barra dos dois lados (nunca ocorre
+    # em decimal/milhar brasileiro, que nao usa barra)
+    texto = re.sub(
+        r'(\d{1,2}\s*/\s*\d{1,2}),(\d{1,2}\s*/\s*\d{1,2})', r'\1, \2', texto
+    )
+
+    # Padrão 12: digito(s) + ponto colado + MAIUSCULA>=4 -- novo, 24/07/2026
+    # "02.SEGUNDO" -> "02. SEGUNDO" | preserva "3.OBS", "01.HDA" (MAIUSCULA<4)
+    # e nao afeta decimais ("37.8") nem codigos CID ("I10.0"), pois exige letras
+    # (nao digitos) depois do ponto
+    texto = re.sub(rf'(\d+)\.({M}{{4,}})', r'\1. \2', texto)
 
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4c) Correção de erros de digitação
@@ -301,9 +557,17 @@ def mascarar_telefone(texto):
     # - 998387639                → celular sem DDD, 9 dígitos começando com 9
     #   ATENÇÃO: pode conflitar com RG de 9 dígitos — risco baixo pois RG
     #   geralmente aparece precedido do rótulo "RG" no texto clínico
+    # - 33366997                 → fixo sem DDD, 8 dígitos começando com 3
+    #   (fixo no ES sempre começa com 3, evita conflito com outros nº de 8 dígitos)
     # - NETA 27 - 9.99773 - 0641 → rótulo de parentesco/contato + DDD + número com ponto como separador
     #   ATENÇÃO: o ponto é separador do sistema MV, não decimal — exige rótulo antes para não
     #   conflitar com valores clínicos numéricos
+    #
+    # Proteção contra colisão com RG/CEP (identificado 24/07/2026 na regeneração do corpus,
+    # Task #25): RG de 9 dígitos começando com 9 (ex: "RG : 978466517") e CEP mal formatado
+    # com hífen (ex: "CEP : 2916 - 0021") coincidem estruturalmente com os padrões de celular
+    # sem DDD e fixo sem DDD abaixo. Não mascara como telefone se o rótulo "RG" ou "CEP"
+    # aparecer imediatamente antes do número.
 
     if not isinstance(texto, str):
         return ''
@@ -334,10 +598,29 @@ def mascarar_telefone(texto):
     # Número com ponto como separador, sem DDD: 99999.9999 ou 9999.9999
     # Ex: 99874.5657 — ponto é separador do sistema MV, não decimal
     texto = re.sub(r'\b\d{4,5}\.\d{4}\b', '__TELEFONE__', texto)
+    # Protecao contra colisao com RG/CEP (identificado 24/07/2026 na regeneracao do
+    # corpus, Task #25): RG de 9 digitos comecando com 9 e CEP mal formatado (4+4
+    # digitos com hifen) coincidem estruturalmente com os padroes de celular/fixo
+    # sem DDD abaixo. So mascara como telefone se NAO houver o rotulo "RG" ou "CEP"
+    # (com ou sem dois-pontos) imediatamente antes do numero.
+    def _protege_rotulo(m, rotulos):
+        contexto_anterior = texto[max(0, m.start() - 12):m.start()]
+        if re.search(rf'(?i)\b(?:{rotulos})\s*[:\-]?\s*$', contexto_anterior):
+            return m.group(0)
+        return '__TELEFONE__'
+
     # Celular sem DDD: 9 dígitos começando com 9 (ex: 998387639)
-    texto = re.sub(r'\b9\d{8}\b', '__TELEFONE__', texto)
-    # Fixo sem DDD: 9999-9999
-    texto = re.sub(r'\b\d{4}\s*-\s*\d{4}\b', '__TELEFONE__', texto)
+    # NAO mascara se precedido de "RG" (RG de 9 digitos comecando com 9 e possivel)
+    texto = re.sub(r'\b9\d{8}\b', lambda m: _protege_rotulo(m, 'RG'), texto)
+    # Fixo sem DDD e sem separador: 8 dígitos começando com 3 (ex: 33366997)
+    # No ES (e na maioria dos DDDs brasileiros), fixo sempre começa com 3;
+    # exigir esse dígito inicial evita falso positivo com outros números de
+    # 8 dígitos (nº de exame, prontuário, etc.) que não têm esse padrão.
+    texto = re.sub(r'\b3\d{7}\b', '__TELEFONE__', texto)
+    # Fixo sem DDD: 9999-9999 ou 99999-9999 (4 ou 5 digitos antes do hifen)
+    # Ex: 9999-9999, 99613 - 9023 (com espacos ao redor do hifen)
+    # NAO mascara se precedido de "CEP" (CEP mal formatado, ex: "2916 - 0021")
+    texto = re.sub(r'\b\d{4,5}\s*-\s*\d{4}\b', lambda m: _protege_rotulo(m, 'CEP'), texto)
     # Formato com ponto como separador, precedido de rótulo de parentesco/contato
     # Ex: NETA 27 - 9.99773 - 0641 (ponto é separador do sistema MV, não decimal)
     texto = re.sub(

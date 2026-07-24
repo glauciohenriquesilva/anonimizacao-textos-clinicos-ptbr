@@ -1,0 +1,1324 @@
+[
+  {
+    "id": 5139,
+    "ordem": 138,
+    "trecho_antigo": [
+      "-",
+      "PS",
+      ":",
+      "2026-02-27",
+      "DIH",
+      "URG",
+      "1"
+    ],
+    "trecho_novo": [
+      "-",
+      "PS",
+      ":",
+      "__DATA__",
+      "DIH",
+      "URG",
+      "1"
+    ],
+    "labels_envolvidos": [
+      "I-PESSOA"
+    ]
+  },
+  {
+    "id": 20227,
+    "ordem": 226,
+    "trecho_antigo": [
+      ",",
+      "BAIRRO",
+      "BELA",
+      "AURORA,MUNICÍPIO",
+      "DE",
+      "CARIACICA",
+      "."
+    ],
+    "trecho_novo": [
+      ",",
+      "BAIRRO",
+      "BELA",
+      "AURORA",
+      ",",
+      "MUNICÍPIO",
+      "DE",
+      "CARIACICA",
+      "."
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 20364,
+    "ordem": 363,
+    "trecho_antigo": [
+      "-",
+      "Bairro",
+      "Nova",
+      "Palestina.",
+      "Paciente",
+      "relata",
+      "que"
+    ],
+    "trecho_novo": [
+      "-",
+      "Bairro",
+      "Nova",
+      "Palestina",
+      ".",
+      "Paciente",
+      "relata",
+      "que"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 5439,
+    "ordem": 438,
+    "trecho_antigo": [
+      "diasSolteira",
+      "RUA",
+      "HERMES",
+      "VALADARES72SANTA",
+      "TEREZA",
+      "SÃO",
+      "MATEUS"
+    ],
+    "trecho_novo": [
+      "diasSolteira",
+      "RUA",
+      "HERMES",
+      "VALADARES",
+      "72",
+      "SANTA",
+      "TEREZA",
+      "SÃO",
+      "MATEUS"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 5449,
+    "ordem": 448,
+    "trecho_antigo": [
+      "NA",
+      "UDM",
+      "PELO",
+      "ENF.GERISMAR",
+      "FOI",
+      "REALIZADA",
+      "TAMBÉM"
+    ],
+    "trecho_novo": [
+      "NA",
+      "UDM",
+      "PELO",
+      "ENF",
+      ".",
+      "GERISMAR",
+      "FOI",
+      "REALIZADA",
+      "TAMBÉM"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 5732,
+    "ordem": 731,
+    "trecho_antigo": [
+      "PACIENTE",
+      "COM",
+      "ACOMPANHANTE",
+      "SR.JADSON",
+      "TAVARES",
+      "SAID",
+      ","
+    ],
+    "trecho_novo": [
+      "PACIENTE",
+      "COM",
+      "ACOMPANHANTE",
+      "SR",
+      ".",
+      "JADSON",
+      "TAVARES",
+      "SAID",
+      ","
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 5737,
+    "ordem": 736,
+    "trecho_antigo": [
+      "UTI",
+      "B1",
+      ":",
+      "2026-03-25",
+      "#",
+      "MOTIVO",
+      "DA"
+    ],
+    "trecho_novo": [
+      "UTI",
+      "B1",
+      ":",
+      "__DATA__",
+      "#",
+      "MOTIVO",
+      "DA"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 20774,
+    "ordem": 773,
+    "trecho_antigo": [
+      "Manaim",
+      "em",
+      "Nova",
+      "Almeida.",
+      "Alberto",
+      "conta",
+      "que"
+    ],
+    "trecho_novo": [
+      "Manaim",
+      "em",
+      "Nova",
+      "Almeida",
+      ".",
+      "Alberto",
+      "conta",
+      "que"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 20790,
+    "ordem": 789,
+    "trecho_antigo": [
+      "e",
+      "respiratorias",
+      "até",
+      "01",
+      "/",
+      "09",
+      "/",
+      "19Resultados",
+      "alcançados",
+      "de",
+      "Fisioterapia"
+    ],
+    "trecho_novo": [
+      "e",
+      "respiratorias",
+      "até",
+      "__DATA__",
+      "Resultados",
+      "alcançados",
+      "de",
+      "Fisioterapia"
+    ],
+    "labels_envolvidos": [
+      "B-DATA",
+      "I-DATA",
+      "I-DATA",
+      "O",
+      "O"
+    ]
+  },
+  {
+    "id": 5876,
+    "ordem": 875,
+    "trecho_antigo": [
+      "-",
+      "PS",
+      ":",
+      "2026-04-03",
+      "HDA",
+      "DA",
+      "ADMISSÃO"
+    ],
+    "trecho_novo": [
+      "-",
+      "PS",
+      ":",
+      "__DATA__",
+      "HDA",
+      "DA",
+      "ADMISSÃO"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 6056,
+    "ordem": 1055,
+    "trecho_antigo": [
+      "LCR",
+      ")",
+      "PARA",
+      "2026-03-29",
+      "ENCAMINHAR",
+      "MATERIAL",
+      "DO"
+    ],
+    "trecho_novo": [
+      "LCR",
+      ")",
+      "PARA",
+      "__DATA__",
+      "ENCAMINHAR",
+      "MATERIAL",
+      "DO"
+    ],
+    "labels_envolvidos": [
+      "B-ENDERECO"
+    ]
+  },
+  {
+    "id": 21140,
+    "ordem": 1139,
+    "trecho_antigo": [
+      "Município",
+      "de",
+      "Jõao",
+      "Neiva,contato",
+      "__TELEFONE__",
+      ",",
+      "repasso"
+    ],
+    "trecho_novo": [
+      "Município",
+      "de",
+      "Jõao",
+      "Neiva",
+      ",",
+      "contato",
+      "__TELEFONE__",
+      ",",
+      "repasso"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 21160,
+    "ordem": 1159,
+    "trecho_antigo": [
+      "TRANSFERENCIA",
+      "PARA",
+      "HOSPITAL",
+      "AFPES.",
+      "Paciente",
+      "lúcida",
+      ","
+    ],
+    "trecho_novo": [
+      "TRANSFERENCIA",
+      "PARA",
+      "HOSPITAL",
+      "AFPES",
+      ".",
+      "Paciente",
+      "lúcida",
+      ","
+    ],
+    "labels_envolvidos": [
+      "I-INSTITUICAO"
+    ]
+  },
+  {
+    "id": 21318,
+    "ordem": 1317,
+    "trecho_antigo": [
+      "DE",
+      "14",
+      "/",
+      "06.SOLICITO",
+      "VPA.À",
+      "DISPOSIÇÃO",
+      "."
+    ],
+    "trecho_novo": [
+      "DE",
+      "14",
+      "/",
+      "06",
+      ".",
+      "SOLICITO",
+      "VPA.À",
+      "DISPOSIÇÃO",
+      "."
+    ],
+    "labels_envolvidos": [
+      "I-DATA"
+    ]
+  },
+  {
+    "id": 6340,
+    "ordem": 1339,
+    "trecho_antigo": [
+      "DE",
+      "0000020,001",
+      "A",
+      "0000037NOVA",
+      "AIMORES",
+      "-",
+      "NOVA"
+    ],
+    "trecho_novo": [
+      "DE",
+      "0000020,001",
+      "A",
+      "0000037",
+      "NOVA",
+      "AIMORES",
+      "-",
+      "NOVA"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 6354,
+    "ordem": 1353,
+    "trecho_antigo": [
+      "RG",
+      ":",
+      "978466517",
+      "-",
+      "49"
+    ],
+    "trecho_novo": [
+      "RG",
+      ":",
+      "__TELEFONE__",
+      "-",
+      "49"
+    ],
+    "labels_envolvidos": [
+      "B-DOCUMENTO"
+    ]
+  },
+  {
+    "id": 6540,
+    "ordem": 1539,
+    "trecho_antigo": [
+      "REALIZADO",
+      "COM",
+      "A",
+      "SRA.CLAUDETE",
+      "(",
+      "IRMÃ",
+      ")"
+    ],
+    "trecho_novo": [
+      "REALIZADO",
+      "COM",
+      "A",
+      "SRA",
+      ".",
+      "CLAUDETE",
+      "(",
+      "IRMÃ",
+      ")"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 6631,
+    "ordem": 1630,
+    "trecho_antigo": [
+      "EVOLUÇÃO",
+      "ENFERMARIA",
+      "HESVV",
+      "2026-03-28",
+      "#",
+      "#",
+      "#"
+    ],
+    "trecho_novo": [
+      "EVOLUÇÃO",
+      "ENFERMARIA",
+      "HESVV",
+      "__DATA__",
+      "#",
+      "#",
+      "#"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 6658,
+    "ordem": 1657,
+    "trecho_antigo": [
+      "TELEFÔNICO",
+      "COM",
+      "A",
+      "SRA.RUDMARA",
+      "(",
+      "ENTEADA",
+      ")"
+    ],
+    "trecho_novo": [
+      "TELEFÔNICO",
+      "COM",
+      "A",
+      "SRA",
+      ".",
+      "RUDMARA",
+      "(",
+      "ENTEADA",
+      ")"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 21699,
+    "ordem": 1698,
+    "trecho_antigo": [
+      "da",
+      "Serra",
+      "-",
+      "Serra.",
+      "Sou",
+      "informada",
+      "que"
+    ],
+    "trecho_novo": [
+      "da",
+      "Serra",
+      "-",
+      "Serra",
+      ".",
+      "Sou",
+      "informada",
+      "que"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 6725,
+    "ordem": 1724,
+    "trecho_antigo": [
+      "-",
+      "PS",
+      ":",
+      "2026-02-27",
+      "DIH",
+      "URG",
+      "1"
+    ],
+    "trecho_novo": [
+      "-",
+      "PS",
+      ":",
+      "__DATA__",
+      "DIH",
+      "URG",
+      "1"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 6726,
+    "ordem": 1725,
+    "trecho_antigo": [
+      "TC",
+      "CRÂNIO",
+      "(",
+      "2026-04-02",
+      "Às",
+      "23:54",
+      "H"
+    ],
+    "trecho_novo": [
+      "TC",
+      "CRÂNIO",
+      "(",
+      "__DATA__",
+      "Às",
+      "__HORA__",
+      "H"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 21839,
+    "ordem": 1838,
+    "trecho_antigo": [
+      "Município",
+      "de",
+      "Marechal",
+      "Floriano.",
+      "Vou",
+      "ao",
+      "leito"
+    ],
+    "trecho_novo": [
+      "Município",
+      "de",
+      "Marechal",
+      "Floriano",
+      ".",
+      "Vou",
+      "ao",
+      "leito"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 6900,
+    "ordem": 1899,
+    "trecho_antigo": [
+      "ALTA",
+      "UTI",
+      ":",
+      "2026-04-10"
+    ],
+    "trecho_novo": [
+      "ALTA",
+      "UTI",
+      ":",
+      "__DATA__"
+    ],
+    "labels_envolvidos": [
+      "I-INSTITUICAO"
+    ]
+  },
+  {
+    "id": 22078,
+    "ordem": 2077,
+    "trecho_antigo": [
+      "CHECAR",
+      "ANTES",
+      "DA",
+      "CIRURGIA.ATT,FABIANA",
+      "FONTES",
+      "VIEIRACRM",
+      "11577"
+    ],
+    "trecho_novo": [
+      "CHECAR",
+      "ANTES",
+      "DA",
+      "CIRURGIA.ATT",
+      ",",
+      "FABIANA",
+      "FONTES",
+      "VIEIRACRM",
+      "11577"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 22150,
+    "ordem": 2149,
+    "trecho_antigo": [
+      "MARCIO",
+      "ALVES",
+      "DA",
+      "CONQUISTA.",
+      "Informa",
+      "que",
+      "e"
+    ],
+    "trecho_novo": [
+      "MARCIO",
+      "ALVES",
+      "DA",
+      "CONQUISTA",
+      ".",
+      "Informa",
+      "que",
+      "e"
+    ],
+    "labels_envolvidos": [
+      "I-PESSOA"
+    ]
+  },
+  {
+    "id": 22208,
+    "ordem": 2207,
+    "trecho_antigo": [
+      "Sr",
+      ".",
+      "Nelson",
+      "Junior.",
+      "Deixa",
+      "o",
+      "contato"
+    ],
+    "trecho_novo": [
+      "Sr",
+      ".",
+      "Nelson",
+      "Junior",
+      ".",
+      "Deixa",
+      "o",
+      "contato"
+    ],
+    "labels_envolvidos": [
+      "I-PESSOA"
+    ]
+  },
+  {
+    "id": 7213,
+    "ordem": 2212,
+    "trecho_antigo": [
+      "Feminino14",
+      "anosSolteira",
+      "RUA",
+      "QUATORZE5COHAB",
+      "SÃO",
+      "MATEUS",
+      "-"
+    ],
+    "trecho_novo": [
+      "Feminino14",
+      "anosSolteira",
+      "RUA",
+      "QUATORZE",
+      "5",
+      "COHAB",
+      "SÃO",
+      "MATEUS",
+      "-"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 7601,
+    "ordem": 2600,
+    "trecho_antigo": [
+      "conforme",
+      "esquema",
+      ":",
+      "2026-03-16",
+      ":",
+      "Clozapina",
+      "100mg"
+    ],
+    "trecho_novo": [
+      "conforme",
+      "esquema",
+      ":",
+      "__DATA__",
+      ":",
+      "Clozapina",
+      "100mg"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 7616,
+    "ordem": 2615,
+    "trecho_antigo": [
+      "3",
+      "FILHOS",
+      "-",
+      "AGNALDO,ELCIO",
+      "E",
+      "ELZA",
+      "APOSENTADA"
+    ],
+    "trecho_novo": [
+      "3",
+      "FILHOS",
+      "-",
+      "AGNALDO",
+      ",",
+      "ELCIO",
+      "E",
+      "ELZA",
+      "APOSENTADA"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 22656,
+    "ordem": 2655,
+    "trecho_antigo": [
+      "270",
+      ",",
+      "Mario",
+      "Cypreste.",
+      "Contato",
+      ":",
+      "__TELEFONE__"
+    ],
+    "trecho_novo": [
+      "270",
+      ",",
+      "Mario",
+      "Cypreste",
+      ".",
+      "Contato",
+      ":",
+      "__TELEFONE__"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 7786,
+    "ordem": 2785,
+    "trecho_antigo": [
+      "-",
+      "(",
+      "2026-03-02",
+      ")",
+      "PNEUMONIA",
+      "ASSOCIADA"
+    ],
+    "trecho_novo": [
+      "-",
+      "(",
+      "__DATA__",
+      ")",
+      "PNEUMONIA",
+      "ASSOCIADA"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 22979,
+    "ordem": 2978,
+    "trecho_antigo": [
+      "médica",
+      "clínica",
+      "Drª",
+      "Cristina.",
+      "Repassou",
+      "que",
+      "é"
+    ],
+    "trecho_novo": [
+      "médica",
+      "clínica",
+      "Drª",
+      "Cristina",
+      ".",
+      "Repassou",
+      "que",
+      "é"
+    ],
+    "labels_envolvidos": [
+      "I-PESSOA"
+    ]
+  },
+  {
+    "id": 8118,
+    "ordem": 3117,
+    "trecho_antigo": [
+      "ESPÍRITO",
+      "SANTO",
+      "DESDE",
+      "2026-02-24",
+      "COM",
+      "QUADRO",
+      "DE"
+    ],
+    "trecho_novo": [
+      "ESPÍRITO",
+      "SANTO",
+      "DESDE",
+      "__DATA__",
+      "COM",
+      "QUADRO",
+      "DE"
+    ],
+    "labels_envolvidos": [
+      "B-ENDERECO"
+    ]
+  },
+  {
+    "id": 23169,
+    "ordem": 3168,
+    "trecho_antigo": [
+      "Fruta",
+      ",",
+      "Vila",
+      "Velha.Reside",
+      "com",
+      "2",
+      "filhos"
+    ],
+    "trecho_novo": [
+      "Fruta",
+      ",",
+      "Vila",
+      "Velha",
+      ".",
+      "Reside",
+      "com",
+      "2",
+      "filhos"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 23275,
+    "ordem": 3274,
+    "trecho_antigo": [
+      "no",
+      "Rio",
+      "de",
+      "Janeiro.Realizo",
+      "tentativa",
+      "de",
+      "contato"
+    ],
+    "trecho_novo": [
+      "no",
+      "Rio",
+      "de",
+      "Janeiro",
+      ".",
+      "Realizo",
+      "tentativa",
+      "de",
+      "contato"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 8527,
+    "ordem": 3526,
+    "trecho_antigo": [
+      "COM",
+      "AS",
+      "FILHAS",
+      "MIRIAN,MIRENEZ",
+      "E",
+      "UMA",
+      "NETA"
+    ],
+    "trecho_novo": [
+      "COM",
+      "AS",
+      "FILHAS",
+      "MIRIAN",
+      ",",
+      "MIRENEZ",
+      "E",
+      "UMA",
+      "NETA"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 8669,
+    "ordem": 3668,
+    "trecho_antigo": [
+      "SERRA",
+      "CEP",
+      ":",
+      "2916",
+      "-",
+      "0021"
+    ],
+    "trecho_novo": [
+      "SERRA",
+      "CEP",
+      ":",
+      "__TELEFONE__"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO",
+      "I-ENDERECO",
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 23818,
+    "ordem": 3817,
+    "trecho_antigo": [
+      "acompanhado",
+      "pela",
+      "irmã",
+      "Edimar.Questiono",
+      "sobre",
+      "a",
+      "desospitalização"
+    ],
+    "trecho_novo": [
+      "acompanhado",
+      "pela",
+      "irmã",
+      "Edimar",
+      ".",
+      "Questiono",
+      "sobre",
+      "a",
+      "desospitalização"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 23871,
+    "ordem": 3870,
+    "trecho_antigo": [
+      "do",
+      "Principe",
+      "/",
+      "Vitória.Familiares",
+      "sinalizam",
+      "suporte",
+      "no"
+    ],
+    "trecho_novo": [
+      "do",
+      "Principe",
+      "/",
+      "Vitória",
+      ".",
+      "Familiares",
+      "sinalizam",
+      "suporte",
+      "no"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 9014,
+    "ordem": 4013,
+    "trecho_antigo": [
+      "POR",
+      "VOLTA",
+      "DE",
+      "15HORAS",
+      "INICIOU",
+      "QUADRO",
+      "DE"
+    ],
+    "trecho_novo": [
+      "POR",
+      "VOLTA",
+      "DE",
+      "15",
+      "HORAS",
+      "INICIOU",
+      "QUADRO",
+      "DE"
+    ],
+    "labels_envolvidos": [
+      "B-HORA"
+    ]
+  },
+  {
+    "id": 9107,
+    "ordem": 4106,
+    "trecho_antigo": [
+      "DE",
+      "1",
+      "A",
+      "99999675VITORIA",
+      "SÃO",
+      "MATEUS",
+      "-"
+    ],
+    "trecho_novo": [
+      "DE",
+      "1",
+      "A",
+      "99999675",
+      "VITORIA",
+      "SÃO",
+      "MATEUS",
+      "-"
+    ],
+    "labels_envolvidos": [
+      "B-ENDERECO"
+    ]
+  },
+  {
+    "id": 24111,
+    "ordem": 4110,
+    "trecho_antigo": [
+      "de",
+      "Santana",
+      "/",
+      "Cariacica.Informa",
+      "que",
+      "a",
+      "paciente"
+    ],
+    "trecho_novo": [
+      "de",
+      "Santana",
+      "/",
+      "Cariacica",
+      ".",
+      "Informa",
+      "que",
+      "a",
+      "paciente"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 24150,
+    "ordem": 4149,
+    "trecho_antigo": [
+      ",",
+      "Colatina",
+      "/",
+      "ES.Nome",
+      "da",
+      "mãe",
+      ":"
+    ],
+    "trecho_novo": [
+      ",",
+      "Colatina",
+      "/",
+      "ES",
+      ".",
+      "Nome",
+      "da",
+      "mãe",
+      ":"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 9287,
+    "ordem": 4286,
+    "trecho_antigo": [
+      "17:20",
+      "DO",
+      "DIA",
+      "2026-04-03",
+      "."
+    ],
+    "trecho_novo": [
+      "__HORA__",
+      "DO",
+      "DIA",
+      "__DATA__",
+      "."
+    ],
+    "labels_envolvidos": [
+      "B-INSTITUICAO"
+    ]
+  },
+  {
+    "id": 9290,
+    "ordem": 4289,
+    "trecho_antigo": [
+      "diasSolteira",
+      "RUA",
+      "EUGENIO",
+      "CADORINI28BONSUCESSO",
+      "SÃO",
+      "MATEUS",
+      "-"
+    ],
+    "trecho_novo": [
+      "diasSolteira",
+      "RUA",
+      "EUGENIO",
+      "CADORINI",
+      "28",
+      "BONSUCESSO",
+      "SÃO",
+      "MATEUS",
+      "-"
+    ],
+    "labels_envolvidos": [
+      "I-ENDERECO"
+    ]
+  },
+  {
+    "id": 24377,
+    "ordem": 4376,
+    "trecho_antigo": [
+      "EM",
+      "07",
+      "/",
+      "02.SEGUNDO",
+      "A",
+      "PRESCRIÇAO",
+      "ESTA"
+    ],
+    "trecho_novo": [
+      "EM",
+      "07",
+      "/",
+      "02",
+      ".",
+      "SEGUNDO",
+      "A",
+      "PRESCRIÇAO",
+      "ESTA"
+    ],
+    "labels_envolvidos": [
+      "I-DATA"
+    ]
+  },
+  {
+    "id": 24379,
+    "ordem": 4378,
+    "trecho_antigo": [
+      "pela",
+      "irmã",
+      "Sra",
+      "Maria.Relata",
+      "enfereço",
+      ",",
+      "Rua"
+    ],
+    "trecho_novo": [
+      "pela",
+      "irmã",
+      "Sra",
+      "Maria",
+      ".",
+      "Relata",
+      "enfereço",
+      ",",
+      "Rua"
+    ],
+    "labels_envolvidos": [
+      "I-PESSOA"
+    ]
+  },
+  {
+    "id": 24529,
+    "ordem": 4528,
+    "trecho_antigo": [
+      "para",
+      "o",
+      "hospital",
+      "evangélico.Sr",
+      "Mara",
+      "informa",
+      "que"
+    ],
+    "trecho_novo": [
+      "para",
+      "o",
+      "hospital",
+      "evangélico",
+      ".",
+      "Sr",
+      "Mara",
+      "informa",
+      "que"
+    ],
+    "labels_envolvidos": [
+      "I-INSTITUICAO"
+    ]
+  },
+  {
+    "id": 9755,
+    "ordem": 4754,
+    "trecho_antigo": [
+      "TVP",
+      "MIE",
+      "(",
+      "2026-03-25",
+      ")",
+      "-",
+      "TEP"
+    ],
+    "trecho_novo": [
+      "TVP",
+      "MIE",
+      "(",
+      "__DATA__",
+      ")",
+      "-",
+      "TEP"
+    ],
+    "labels_envolvidos": [
+      "B-PESSOA"
+    ]
+  },
+  {
+    "id": 9976,
+    "ordem": 4975,
+    "trecho_antigo": [
+      "Infância",
+      "CPF",
+      ":",
+      "222.250.977.71",
+      "Data",
+      "de",
+      "Nascimento"
+    ],
+    "trecho_novo": [
+      "Infância",
+      "CPF",
+      ":",
+      "__CPF__",
+      "Data",
+      "de",
+      "Nascimento"
+    ],
+    "labels_envolvidos": [
+      "I-DOCUMENTO"
+    ]
+  }
+]
