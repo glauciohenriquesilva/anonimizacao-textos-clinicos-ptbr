@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Extração MV{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+  <i class="bi bi-database-down me-2 text-primary"></i>Extração de Dados — Banco MV
+</h4>
+
+<div class="alert alert-info py-2 mb-4">
+  <i class="bi bi-info-circle me-1"></i>
+  Roda <code>scripts/extrair_mv_sqlite.py</code> em segundo plano, em blocos, pra não sobrecarregar o
+  banco de produção. A senha do Oracle não é salva em nenhum lugar — só passa para o processo desta
+  execução.
+</div>
+
+<!-- Formulário -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" id="form-extracao-mv">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <label class="form-label d-block">Modo</label>
+        <div class="btn-group" role="group">
+          <input type="radio" class="btn-check" name="modo" id="modoCompleto" value="completo" checked>
+          <label class="btn btn-outline-primary btn-sm" for="modoCompleto">Extração completa</label>
+
+          <input type="radio" class="btn-check" name="modo" id="modoRemineracao" value="remineracao_prescricoes">
+          <label class="btn btn-outline-primary btn-sm" for="modoRemineracao">Remineração cirúrgica (só prescrições)</label>
+        </div>
+        <div class="form-text" id="ajuda-modo">
+          <strong>Extração completa:</strong> pareceres + mineração + amostragem sistemática, do zero (ou retomando se já existir).
+        </div>
+      </div>
+
+      <div class="alert alert-warning py-2 mb-3 d-none" id="alerta-remineracao">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Precisa de uma extração completa <strong>já existente</strong> para o experimento ativo. Só adiciona
+        candidatos novos de DOCUMENTO/ENDERECO/PRONTUÁRIO/MATRÍCULA (regex corrigido, com <code>\b</code>) em
+        cima do que já está no arquivo — pareceres e amostragem sistemática não são tocados. "Começar do zero"
+        não se aplica nesse modo.
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Usuário Oracle</label>
+          <input type="text" name="db_user" class="form-control" required />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Senha</label>
+          <input type="password" name="db_password" class="form-control" required autocomplete="off" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Host</label>
+          <input type="text" name="db_host" class="form-control" placeholder="servsoulprd" required />
+        </div>
+        <div class="col-md-1">
+          <label class="form-label">Porta</label>
+          <input type="text" name="db_port" class="form-control" value="1521" required />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Service Name</label>
+          <input type="text" name="db_service" class="form-control" required />
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <label class="form-label d-block">Hospitais incluídos</label>
+          {% for cd, nome in hospitais_mv %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="hospitais" value="{{ cd }}"
+                   id="hosp{{ cd }}" {% if cd in hospitais_padrao %}checked{% endif %} />
+            <label class="form-check-label small" for="hosp{{ cd }}">{{ cd }} — {{ nome }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Teto prescrições</label>
+          <input type="number" name="teto_prescricoes" class="form-control" value="500000" min="1" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Tamanho do bloco</label>
+          <input type="number" name="batch_size" class="form-control" value="5000" min="100" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Pausa entre blocos (s)</label>
+          <input type="number" step="0.1" name="sleep_entre_blocos" class="form-control" value="1.5" min="0" />
+        </div>
+      </div>
+
+      <div class="form-check mt-3" id="wrap-comecar-do-zero">
+        <input class="form-check-input" type="checkbox" name="comecar_do_zero" id="comecarDoZero" />
+        <label class="form-check-label small" for="comecarDoZero">
+          Começar do zero (apaga o progresso salvo desse experimento e reextrai tudo)
+        </label>
+      </div>
+
+      <div class="mt-3">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-play-fill me-1"></i>Iniciar extração
+        </button>
+        <span class="text-muted small ms-2" id="ajuda-rodape">
+          Pareceres: extração completa (sem teto). Prescrições: mineração de entidades raras + amostragem
+          sistemática por hospital, até o teto acima. Rodar de novo sem marcar a opção acima
+          <strong>retoma</strong> de onde parou.
+        </span>
+      </div>
+    </form>
+
+    <script>
+    (function () {
+      var radios = document.querySelectorAll('input[name="modo"]');
+      var alerta = document.getElementById('alerta-remineracao');
+      var wrapZero = document.getElementById('wrap-comecar-do-zero');
+      var comecarZero = document.getElementById('comecarDoZero');
+      var ajudaModo = document.getElementById('ajuda-modo');
+      var ajudaRodape = document.getElementById('ajuda-rodape');
+
+      function atualizar() {
+        var modo = document.querySelector('input[name="modo"]:checked').value;
+        var cirurgico = modo === 'remineracao_prescricoes';
+        alerta.classList.toggle('d-none', !cirurgico);
+        wrapZero.classList.toggle('d-none', cirurgico);
+        if (cirurgico) { comecarZero.checked = false; }
+        ajudaModo.innerHTML = cirurgico
+          ? '<strong>Remineração cirúrgica:</strong> só refaz a mineração de DOCUMENTO/ENDERECO/PRONTUÁRIO/MATRÍCULA em prescrições, com o regex corrigido — pareceres e amostragem sistemática ficam como estão.'
+          : '<strong>Extração completa:</strong> pareceres + mineração + amostragem sistemática, do zero (ou retomando se já existir).';
+        ajudaRodape.style.display = cirurgico ? 'none' : '';
+      }
+
+      radios.forEach(function (r) { r.addEventListener('change', atualizar); });
+      atualizar();
+    })();
+    </script>
+  </div>
+</div>
+
+<!-- Status da execução atual -->
+{% if execucao_atual %}
+<div class="card mb-4" id="card-status" data-execucao-id="{{ execucao_atual.pk }}"
+     data-status-url="{% url 'preprocessamento:extracao_mv_status' execucao_atual.pk %}">
+  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+    <span>
+      <i class="bi bi-activity me-2"></i>Execução #{{ execucao_atual.pk }}
+      — {{ execucao_atual.criado_em|date:"d/m/Y H:i" }}
+    </span>
+    <span id="badge-status" class="badge bg-secondary">{{ execucao_atual.get_status_display }}</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-3 mb-3">
+      <div class="col-md-3">
+        <div class="card metric-card h-100">
+          <div class="card-body">
+            <div class="text-muted small">Pareceres extraídos</div>
+            <div class="fs-4 fw-bold" id="total-pareceres">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card metric-card h-100">
+          <div class="card-body">
+            <div class="text-muted small">Prescrições extraídas</div>
+            <div class="fs-4 fw-bold" id="total-prescricoes">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small mb-1">Arquivo SQLite</div>
+        <code class="small">{{ execucao_atual.caminho_sqlite }}</code>
+      </div>
+    </div>
+
+    <h6 class="mb-2">Progresso por bloco</h6>
+    <table class="table table-sm table-hover mb-3">
+      <thead class="table-light">
+        <tr><th>Bloco</th><th class="text-end">Linhas extraídas</th><th class="text-center">Status</th></tr>
+      </thead>
+      <tbody id="tabela-progresso">
+        <tr><td colspan="3" class="text-muted">Aguardando primeira leitura...</td></tr>
+      </tbody>
+    </table>
+
+    <h6 class="mb-2">Log (últimas linhas)</h6>
+    <pre id="log-tail" style="background:#212529;color:#e9ecef;padding:1rem;border-radius:0.375rem;max-height:320px;overflow-y:auto;font-size:0.8rem;">Aguardando...</pre>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+(function () {
+  var card = document.getElementById('card-status');
+  if (!card) return;
+  var statusUrl = card.dataset.statusUrl;
+  var badge = document.getElementById('badge-status');
+  var logTail = document.getElementById('log-tail');
+  var tabelaProgresso = document.getElementById('tabela-progresso');
+  var totalPareceres = document.getElementById('total-pareceres');
+  var totalPrescricoes = document.getElementById('total-prescricoes');
+
+  var corBadge = {em_execucao: 'bg-primary', concluido: 'bg-success', erro: 'bg-danger'};
+  var swalFechadoManualmente = false;
+
+  function montarHtmlSwal(data) {
+    var totalPar = data.total_pareceres_esperado != null ? data.total_pareceres_esperado : '?';
+    var totalPre = data.total_prescricoes_teto != null ? data.total_prescricoes_teto : '?';
+    var totalBl  = data.total_blocos != null ? data.total_blocos : '?';
+    return (
+      '<div style="text-align:left">' +
+      '<p class="mb-2"><b>' + (data.total_prescricoes || 0) + '</b> registros extraídos de prescrições de um total de <b>' + totalPre + '</b></p>' +
+      '<p class="mb-2"><b>' + (data.total_pareceres || 0) + '</b> registros extraídos de pareceres de um total de <b>' + totalPar + '</b></p>' +
+      '<p class="mb-0"><b>' + (data.blocos_concluidos || 0) + '</b> blocos processados de um total geral de <b>' + totalBl + '</b></p>' +
+      '</div>'
+    );
+  }
+
+  function atualizarSwal(data) {
+    if (typeof Swal === 'undefined' || swalFechadoManualmente) return;
+    if (data.status === 'em_execucao') {
+      if (!Swal.isVisible()) {
+        Swal.fire({
+          title: 'Processando extração...',
+          html: montarHtmlSwal(data),
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          showCloseButton: true,
+          didOpen: function () { Swal.showLoading(); },
+          willClose: function () { swalFechadoManualmente = true; },
+        });
+      } else {
+        Swal.update({ title: 'Processando extração...', html: montarHtmlSwal(data) });
+      }
+    } else if (data.status === 'concluido') {
+      Swal.fire({ icon: 'success', title: 'Extração concluída!', html: montarHtmlSwal(data) });
+    } else if (data.status === 'erro') {
+      Swal.fire({ icon: 'error', title: 'A extração parou com erro', text: 'Veja o log logo abaixo pra detalhes.' });
+    }
+  }
+
+  function atualizar() {
+    fetch(statusUrl).then(function (r) { return r.json(); }).then(function (data) {
+      badge.textContent = data.status;
+      badge.className = 'badge ' + (corBadge[data.status] || 'bg-secondary');
+
+      logTail.textContent = data.log_tail || '(log vazio)';
+      logTail.scrollTop = logTail.scrollHeight;
+
+      totalPareceres.textContent = data.total_pareceres !== null ? data.total_pareceres : '—';
+      totalPrescricoes.textContent = data.total_prescricoes !== null ? data.total_prescricoes : '—';
+
+      if (data.progresso && data.progresso.length) {
+        tabelaProgresso.innerHTML = data.progresso.map(function (p) {
+          var statusTxt = p.concluido
+            ? '<span class="badge bg-success">Concluído</span>'
+            : '<span class="badge bg-warning text-dark">Em andamento</span>';
+          return '<tr><td><code>' + p.bloco + '</code></td><td class="text-end">' + p.offset +
+                 '</td><td class="text-center">' + statusTxt + '</td></tr>';
+        }).join('');
+      }
+
+      atualizarSwal(data);
+
+      if (data.status === 'em_execucao') {
+        setTimeout(atualizar, 3000);
+      }
+    }).catch(function () {
+      setTimeout(atualizar, 5000);
+    });
+  }
+
+  atualizar();
+})();
+</script>
+{% endif %}
+
+<!-- Histórico -->
+<div class="card">
+  <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2"></i>Execuções anteriores</div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th><th>Data</th><th>Status</th><th>Hospitais</th><th>Teto prescrições</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for exec in execucoes %}
+        <tr>
+          <td>{{ exec.pk }}</td>
+          <td>{{ exec.criado_em|date:"d/m/Y H:i" }}</td>
+          <td>
+            {% if exec.status == 'concluido' %}<span class="badge bg-success">Concluído</span>
+            {% elif exec.status == 'erro' %}<span class="badge bg-danger">Erro</span>
+            {% else %}<span class="badge bg-primary">Em execução</span>{% endif %}
+          </td>
+          <td class="small">{{ exec.hospitais_incluidos }}</td>
+          <td>{{ exec.teto_prescricoes }}</td>
+          <td>
+            <a href="{% url 'preprocessamento:extracao_mv_detalhe' exec.pk %}" class="btn btn-sm btn-outline-primary">
+              Ver
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-muted text-center py-3">Nenhuma extração ainda.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

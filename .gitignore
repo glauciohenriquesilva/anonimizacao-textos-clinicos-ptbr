@@ -11,6 +11,7 @@ __localcode
 *.pyc
 __pycache__
 db.sqlite3
+db.sqlite3-journal*
 
 # Backup files #
 *.bak
