@@ -123,6 +123,11 @@ outputs/results/
 outputs/ner/
 outputs/anotador/
 
+# Extrato de metadados — gerado por scripts/extrato_metadados.py
+# Não contém PHI, mas é saída gerada: não versionar
+extrato*.json
+auditoria_*.json
+
 
 
 
