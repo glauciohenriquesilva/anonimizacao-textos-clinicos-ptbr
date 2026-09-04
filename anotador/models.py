@@ -32,6 +32,36 @@ class Sentenca(models.Model):
     ordem     = models.IntegerField()
     tokens    = models.JSONField()  # lista de tokens: ['Paciente', 'João', 'Silva', ',', ...]
 
+    # Campos acrescentados na Fase 2 da extensão de corpus com surrogates.
+    #
+    # Por que eles existem: até aqui o corpus perdia o vínculo com o paciente. O campo
+    # `doc_id` guarda o índice posicional do DataFrame no pré-processamento, que serve
+    # para localizar o documento mas não diz de quem ele é. Sem saber a que pessoa cada
+    # sentença pertence, não dá para cumprir a regra combinada com o orientador: aquele
+    # João da Silva precisa virar o mesmo nome fictício em todos os lugares onde aparece,
+    # enquanto um homônimo dele, que é outra pessoa, precisa virar um nome diferente.
+    # Também não dá para acompanhar um paciente entre internação, alta, transferência e
+    # reinternação, que é o uso de pesquisa que se quer preservar no corpus publicado.
+    #
+    # O que fica guardado é o hash SHA-256 com salt, calculado por
+    # anonimizacao.services.anonimizacao.pseudonimizar_paciente(). O cd_paciente em claro
+    # nunca chega até aqui.
+    #
+    # Os dois campos aceitam nulo de propósito: as sessões de anotação carregadas antes
+    # da Fase 2 continuam válidas sem eles, e a tela de anotação não os utiliza.
+    hash_paciente = models.CharField(
+        max_length=64, null=True, blank=True, db_index=True,
+        help_text='Hash SHA-256 com salt do cd_paciente. É a chave que mantém o mesmo '
+                  'nome fictício para a mesma pessoa ao gerar surrogates. Nunca guarda '
+                  'o identificador em claro.',
+    )
+    sentenca_idx = models.IntegerField(
+        null=True, blank=True,
+        help_text='Posição desta sentença dentro do documento de origem. É o que liga '
+                  'a sentença à linha correspondente do arquivo *_phi.jsonl, onde ficam '
+                  'os valores originais do PHI tratado por regex.',
+    )
+
     class Meta:
         db_table     = 'tb_anonclin_anotador_sentenca'
         verbose_name = 'Sentença'

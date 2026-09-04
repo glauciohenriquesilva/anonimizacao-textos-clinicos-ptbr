@@ -55,6 +55,13 @@
   </div>
 </div>
 
+<!-- Aviso de ajuste automatico no esquema BIO.
+     Fica escondido ate que o servidor informe que corrigiu alguma marcacao. -->
+<div id="aviso-bio" class="alert alert-warning d-none" role="alert">
+  <i class="bi bi-info-circle me-1"></i>
+  <span id="aviso-bio-texto"></span>
+</div>
+
 <!-- Botões de ação -->
 <div class="d-flex gap-2">
   <button class="btn btn-primary" onclick="salvarEProximo()">
@@ -159,9 +166,34 @@
     })
     .then(r => r.json())
     .then(data => {
-        if (data.status === 'ok') {
+        if (data.status !== 'ok') { return; }
+
+        // Sem ajuste nenhum: segue direto para a proxima sentenca, como sempre.
+        if (!data.correcoes || data.correcoes.length === 0) {
             window.location.href = "{% url 'anotador:anotar' sessao.id %}";
+            return;
         }
+
+        // Houve ajuste: mostra o que mudou e deixa o anotador ver antes de avancar.
+        // A anotacao ja foi gravada corrigida; a pausa serve para ele perceber o
+        // padrao e nao repeti-lo nas proximas sentencas.
+        const aviso = document.getElementById('aviso-bio');
+        document.getElementById('aviso-bio-texto').textContent = data.aviso;
+        aviso.classList.remove('d-none');
+        aviso.scrollIntoView({behavior: 'smooth', block: 'center'});
+
+        data.correcoes.forEach(c => {
+            const el = document.querySelector(`.token[data-posicao="${c.posicao}"]`);
+            if (!el) { return; }
+            Object.values(cores).forEach(cls => cls.split(' ').forEach(x => el.classList.remove(x)));
+            (cores[c.para] || 'bg-light text-dark').split(' ').forEach(x => el.classList.add(x));
+            el.dataset.label = c.para;
+            el.style.outline = '2px solid #ffc107';
+        });
+
+        setTimeout(() => {
+            window.location.href = "{% url 'anotador:anotar' sessao.id %}";
+        }, 2500);
     });
   }
 </script>

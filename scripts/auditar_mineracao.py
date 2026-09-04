@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auditoria dos blocos de mineração dirigida do Exp 003 — SOMENTE LEITURA, SEM PHI.
+Auditoria dos blocos de mineração dirigida do Exp 003, SOMENTE LEITURA, SEM PHI.
 
 Pergunta que este script responde
 ---------------------------------
@@ -9,7 +9,7 @@ O `Experimento_003_corpus_mv.sqlite3` foi gerado antes ou depois da correção d
 `\\b` em `extrair_mv_sqlite.py` (05/08/2026)?
 
 Motivo da dúvida: a única execução de extração com status `concluido` no banco
-do AnonClin é a id=8, de 04/08/2026 — anterior à correção. As execuções de
+do AnonClin é a id=8, de 04/08/2026, anterior à correção. As execuções de
 05/08 (id=9 e id=10) ficaram penduradas em `em_execucao`. Se o banco atual for
 pré-correção, os registros do bloco `mineracao_documento` são majoritariamente
 falso positivo ("RG" casando dentro de ALERGIAS, CIRURGIA, URGÊNCIA), e a
@@ -64,8 +64,7 @@ def carregar_regex():
     Tenta importar as regex vigentes de scripts/extrair_mv_sqlite.py.
 
     Retorna (dict_de_regras, origem) onde origem é 'extrair_mv_sqlite.py' ou
-    'copia_local'. A cópia local reproduz a versão corrigida de 05/08/2026 —
-    se o original tiver mudado desde então, a importação é a fonte correta e
+    'copia_local'. A cópia local reproduz a versão corrigida de 05/08/2026,     se o original tiver mudado desde então, a importação é a fonte correta e
     a cópia pode divergir. Por isso a origem é sempre reportada na saída.
     """
     caminho = RAIZ_REPO / 'scripts' / 'extrair_mv_sqlite.py'
@@ -83,9 +82,9 @@ def carregar_regex():
             }, 'extrair_mv_sqlite.py'
         except Exception as erro:
             print(f'[aviso] não consegui importar extrair_mv_sqlite.py ({type(erro).__name__}: {erro}).')
-            print('[aviso] usando cópia local das regex — confira se batem com o original.\n')
+            print('[aviso] usando cópia local das regex, confira se batem com o original.\n')
 
-    # Cópia local — espelha a versão corrigida de 05/08/2026
+    # Cópia local, espelha a versão corrigida de 05/08/2026
     re_documento  = re.compile(r'\b(?:RG|CNS|CRM|CNH)\b', re.IGNORECASE)
     re_prontuario = re.compile(r'(?i)\bpront(?:u[áa]rio)?\.?\s*[:\-]\s*n?[ºo°]?\s*\d{4,10}\b')
     re_matricula  = re.compile(r'(?i)\bmatr[íi]cula\s*[:\-]\s*\d{3,10}\b')
@@ -117,7 +116,7 @@ REGRA_POR_BLOCO = {
 }
 
 # Termos contados individualmente no bloco de documento, para mostrar qual
-# sigla sustenta o bloco. Só contagem — nunca o texto ao redor.
+# sigla sustenta o bloco. Só a contagem sai daqui, nunca o texto ao redor.
 TERMOS_DOCUMENTO = ['RG', 'CNS', 'CRM', 'CNH']
 
 
@@ -179,7 +178,7 @@ def auditar(con, regras, origem_regras, amostra_sistematica=0):
         'progresso_extracao': {},
     }
 
-    # Estado da extração — diz o que o script gravou e até onde chegou
+    # Estado da extração, diz o que o script gravou e até onde chegou
     try:
         for linha in con.execute('SELECT chave, valor FROM _metadados'):
             resultado['metadados_extracao'][linha['chave']] = linha['valor']
@@ -251,11 +250,11 @@ def resumir(r):
     linhas.append(f"  {'(pareceres)':24s} {r['total_pareceres']:>9,d}")
 
     linhas.append('')
-    linhas.append('Auditoria dos blocos minerados — reaplicando as regex com \\b:')
+    linhas.append('Auditoria dos blocos minerados, reaplicando as regex com \\b:')
     linhas.append(f"  {'bloco':24s} {'gravado':>9s} {'sobrevive':>10s} {'FP':>8s}")
     for bloco, d in r['blocos'].items():
         if d.get('ausente_no_banco'):
-            linhas.append(f'  {bloco:24s} {"—":>9s} {"ausente":>10s}')
+            linhas.append(f'  {bloco:24s} {", ":>9s} {"ausente":>10s}')
             continue
         linhas.append(
             f"  {bloco:24s} {d['total_gravado']:>9,d} "
@@ -292,7 +291,7 @@ def resumir(r):
 
     linhas.append('')
     linhas.append('Como ler: sobrevivência alta (>90%) sugere banco pós-correção do \\b.')
-    linhas.append('Sobrevivência baixa indica bloco gravado pela versão antiga — reprocessar.')
+    linhas.append('Sobrevivência baixa indica bloco gravado pela versão antiga, reprocessar.')
     return '\n'.join(linhas)
 
 

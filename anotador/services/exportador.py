@@ -7,10 +7,16 @@ def identificar_discordancias(sessao):
     # Retorna lista de dicts com as sentenças e posições onde há discordância.
 
     sentencas = Sentenca.objects.filter(sessao=sessao).order_by('ordem')
+    # O .order_by() vazio antes do .distinct() nao e decorativo. O Meta de
+    # AnotacaoToken define ordering = ['sentenca', 'posicao'], e o Django inclui as
+    # colunas de ordenacao no SELECT quando ha ordering no Meta. O DISTINCT passa
+    # entao a considerar essas colunas tambem, e nao elimina duplicata nenhuma:
+    # o resultado vem com uma linha por token em vez de uma por anotador.
+    # Limpar a ordenacao devolve ao DISTINCT o comportamento esperado.
     anotadores = list(
         AnotacaoToken.objects.filter(
             sentenca__sessao=sessao,
-        ).values_list('anotador_id', flat=True).distinct()
+        ).values_list('anotador_id', flat=True).order_by().distinct()
     )
 
     if len(anotadores) < 2:
@@ -71,13 +77,13 @@ def exportar_conll_final(sessao, caminho_saida):
     anotadores = list(
         AnotacaoToken.objects.filter(
             sentenca__sessao=sessao,
-        ).values_list('anotador_id', flat=True).distinct()
+        ).values_list('anotador_id', flat=True).order_by().distinct()
     )
 
     # Filtra apenas sentenças que têm pelo menos uma anotação registrada
     sentencas_anotadas_ids = AnotacaoToken.objects.filter(
         sentenca__sessao=sessao,
-    ).values_list('sentenca_id', flat=True).distinct()
+    ).values_list('sentenca_id', flat=True).order_by().distinct()
 
     sentencas = Sentenca.objects.filter(
         sessao=sessao,

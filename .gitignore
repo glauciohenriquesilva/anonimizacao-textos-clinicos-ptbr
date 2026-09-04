@@ -128,6 +128,44 @@ outputs/anotador/
 extrato*.json
 auditoria_*.json
 
+# 🔴 Mapa de PHI — gerado pelo pré-processamento com capturar_phi=True
+# Concentra valores reais de data, CPF, telefone, CEP e e-mail em forma limpa.
+# É o arquivo mais sensível que o pipeline produz. NUNCA versionar.
+*_phi.jsonl
+
+# 🔴 CSVs — texto clínico real sob LGPD
+#
+# A regra é ampla de propósito. A anterior listava `prescricoes*.csv` e `pareceres*.csv`,
+# e não cobria `Prescricoes.csv` e `Pareceres.csv`, que são os arquivos de 13/07/2026 que
+# geraram o Exp 002: no Windows o filesystem ignora maiúsculas, mas o padrão do git não.
+# Um arquivo com o nome capitalizado passaria direto.
+#
+# Nenhum CSV do projeto precisa ser versionado. Se algum dia um precisar, acrescente uma
+# exceção explícita com `!nome.csv` abaixo, e só depois de conferir que ele não tem texto
+# clínico nem identificador de paciente.
+*.csv
+*.CSV
+/csv/
+
+# Saidas de terminal redirecionadas
+#
+# `saida.txt` nasceu de um `> saida.txt` sobre a execucao do gerador de corpus, entao pode
+# conter sentencas do corpus, ou seja, texto clinico. Enquanto nao for verificado e
+# apagado, fica fora do git por precaucao. O mesmo vale para qualquer despejo de terminal
+# na raiz: o custo de ignorar e zero, o custo de versionar por engano e alto.
+/saida.txt
+/*.log
+/nohup.out
+
+# Corpus reprocessado e corpora com surrogates
+#
+# O reprocessado é texto clínico mascarado, do mesmo tipo do que já está coberto em
+# outputs/preprocessamento/. Os de surrogates têm valores substituídos, mas carregam os
+# placeholders do PHI que a regex não capturou, e o volume não tem por que estar no git.
+outputs/reprocessamento/
+outputs/surrogates/
+outputs/surrogates_*/
+
 
 
 

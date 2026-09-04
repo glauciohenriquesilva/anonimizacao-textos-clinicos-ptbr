@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Extrato de metadados do banco do AnonClin — SOMENTE LEITURA, SEM PHI.
+Extrato de metadados do banco do AnonClin, SOMENTE LEITURA, SEM PHI.
 
 Motivação
 ---------
 A regra 1 do projeto é inviolável: `db.sqlite3` contém texto clínico real de
 pacientes (a tabela `tb_anonclin_anotador_sentenca` guarda os tokens das
 sentenças) e não pode sair do perímetro institucional. Mas as tabelas de
-controle de experimento — ids, contagens, hiperparâmetros, métricas — não são
+controle de experimento, ids, contagens, hiperparâmetros, métricas, não são
 dado de paciente, e precisam ser consultáveis sem carregar PHI junto.
 
 Este script resolve isso: lê apenas colunas explicitamente autorizadas, nunca
@@ -27,7 +27,7 @@ Garantias de construção
 5. Sanitização dos JSONField: chaves e números passam; strings longas são
    redigidas.
 6. Guarda final: a saída inteira é varrida antes de gravar. Qualquer string
-   acima do limite aborta a execução — falha fechada, não aberta.
+   acima do limite aborta a execução, falha fechada, não aberta.
 
 Uso
 ---
@@ -36,7 +36,7 @@ Uso
     ANONCLIN_DB=/outro/caminho/db.sqlite3 python scripts/extrato_metadados.py
 
 O caminho do banco é resolvido a partir da raiz do repositório (dois níveis
-acima deste arquivo), não hardcoded — roda em qualquer máquina.
+acima deste arquivo), não hardcoded, roda em qualquer máquina.
 """
 
 import argparse
@@ -60,7 +60,7 @@ MAX_STR_JSON = 60
 MAX_STR_SAIDA = 500
 
 # --------------------------------------------------------------------------
-# Allowlist — tabela → colunas lidas na íntegra
+# Allowlist, tabela → colunas lidas na íntegra
 #
 # O que NÃO está aqui não é lido. `obs` fica de fora em todas.
 # --------------------------------------------------------------------------
@@ -150,7 +150,7 @@ COLUNAS_JSON = {
 }
 
 # Tabelas que contêm ou podem conter texto clínico: só entram como contagem.
-# `tb_anonclin_anotador_sentenca` guarda os tokens das sentenças reais — é a
+# `tb_anonclin_anotador_sentenca` guarda os tokens das sentenças reais, é a
 # razão de a regra 1 tratar o banco inteiro como PHI.
 TABELAS_SO_CONTAGEM = [
     'tb_anonclin_anotador_sentenca',
@@ -174,7 +174,7 @@ def resolver_caminho_banco(cli_path=None):
 
 
 def conectar_somente_leitura(caminho):
-    """Abre em modo read-only real — o SQLite recusa qualquer escrita."""
+    """Abre em modo read-only real, o SQLite recusa qualquer escrita."""
     if not caminho.exists():
         sys.exit(f'ERRO: banco não encontrado em {caminho}')
     uri = f'file:{caminho.as_posix()}?mode=ro'
@@ -201,7 +201,7 @@ def sanitizar(valor, profundidade=0):
 
     Números, booleanos e nulos passam. Strings curtas passam (são rótulos de
     entidade, nomes de modelo, chaves de dicionário). Strings longas viram um
-    marcador com o tamanho original — o dado não vaza, mas fica visível que
+    marcador com o tamanho original, o dado não vaza, mas fica visível que
     havia algo ali.
     """
     if profundidade > 12:
@@ -258,13 +258,13 @@ def varrer_saida(no, caminho='raiz'):
     """
     Guarda final: percorre a saída inteira procurando string acima do limite.
 
-    Falha fechada — se algo escapou da sanitização, o script aborta em vez de
+    Falha fechada, se algo escapou da sanitização, o script aborta em vez de
     gravar um arquivo possivelmente contaminado.
     """
     if isinstance(no, str):
         if len(no) > MAX_STR_SAIDA:
             raise PHISuspeitoError(
-                f'String de {len(no)} chars em {caminho} — acima do limite de '
+                f'String de {len(no)} chars em {caminho}, acima do limite de '
                 f'{MAX_STR_SAIDA}. Extração abortada por precaução.'
             )
     elif isinstance(no, dict):
@@ -323,7 +323,7 @@ def resumir(extrato):
     linhas = [f"Experimentos: {experimentos['total']}"]
     for registro in experimentos['registros']:
         criado = (registro.get('criado_em') or '')[:16]
-        linhas.append(f"  [{registro['id']}] {registro.get('nome')} — {criado}")
+        linhas.append(f"  [{registro['id']}] {registro.get('nome')}, {criado}")
 
     linhas.append('')
     linhas.append('Execuções por etapa:')

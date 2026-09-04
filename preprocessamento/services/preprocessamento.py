@@ -76,7 +76,7 @@ MESES_PT = {
 }
 
 
-def normalizar_datas_no_texto(texto):
+def normalizar_datas_no_texto(texto, coletor=None):
     r"""
     Converte datas em formato textual para ISO 8601 (YYYY-MM-DD), em cinco passadas:
 
@@ -130,7 +130,13 @@ def normalizar_datas_no_texto(texto):
 
     # Protecao de idempotencia: mascara datas ISO ja existentes antes das passadas,
     # para nao serem reinterpretadas por engano pelas passadas de hifen/barra/ponto
-    texto = re.sub(r'\b(\d{4}-\d{2}-\d{2})\b', '__DATA__', texto)
+    #
+    # ⚠ Este mascaramento acontece ANTES de mascarar_datas_horas() e captura toda data
+    # que já chega em ISO. Por isso precisa registrar no coletor também, senão o valor
+    # original dessas datas se perde silenciosamente (só as datas convertidas de outros
+    # formatos seriam preservadas).
+    texto = re.sub(r'\b(\d{4}-\d{2}-\d{2})\b',
+                   lambda m: registrar_phi(coletor, 'DATA', m.group(1)), texto)
 
     # Passada 1 — barra: dd/mm/yy(yy), com horário opcional (grupo 4)
     padrao_barra = re.compile(r'\b(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{2,4})(?:\s+(\d{2}:\d{2}))?\b')
@@ -228,25 +234,152 @@ def normalizar_datas_no_texto(texto):
 
     return texto
 
-def mascarar_datas_horas(texto):
+# Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.3b) Captura de PHI estrutural
+#
+# Fase 1 da extensão de corpus com surrogates (ver 01_ESPEC_Corpus_Surrogates.md).
+#
+# O problema que isto resolve: as máscaras de PHI rodam ANTES da segmentação e da
+# exportação, então quando a sentença chega ao anotador a data já virou __DATA__ e o
+# valor original está perdido. Sem o valor original não é possível gerar um surrogate
+# verossímil, e DATA é o PHI mais frequente do corpus.
+#
+# Como funciona: cada função de máscara aceita um `coletor` opcional (uma lista).
+#   - coletor=None  → comportamento IDÊNTICO ao anterior: devolve '__DATA__' etc.
+#                     Nada no pipeline atual muda de comportamento.
+#   - coletor=[]    → o valor original é registrado e o placeholder sai numerado
+#                     ('__DATA_0001__'), o que dá uma âncora estável para religar
+#                     placeholder e valor mesmo quando o mesmo tipo aparece muitas
+#                     vezes na mesma sentença.
+#
+# A numeração é necessária porque a ordem de coleta não é a ordem posicional no texto:
+# cada função varre o texto inteiro antes da seguinte começar, e HORA, por exemplo, é
+# produzida por duas funções diferentes (mascarar_datas_horas e mascarar_horas).
+#
+# 🔴 O coletor preenchido é uma lista concentrada de PHI real: datas, CPFs, telefones,
+# CEPs, e-mails, limpos e prontos para consumo. É o material mais sensível que o
+# pipeline produz, mais que o próprio corpus. Nunca gravar no mesmo arquivo do corpus,
+# nunca versionar, nunca publicar.
+def pseudonimizar_paciente(cd_paciente):
+    """
+    Hash SHA-256 com salt do identificador do paciente, usado a partir da Fase 2.
+
+    Delega para a implementação canônica em anonimizacao/services/anonimizacao.py para
+    que o hash seja o MESMO nos dois módulos: se divergirem, o vínculo longitudinal se
+    quebra silenciosamente e ninguém percebe até o corpus estar errado.
+
+    O import é tardio de propósito. O módulo de anonimização importa `Levenshtein`, que é
+    dependência opcional em algumas máquinas; um import no topo faria o pré-processamento
+    inteiro quebrar por causa de uma biblioteca que ele não usa. O fallback replica a
+    mesma fórmula, então qualquer alteração lá precisa ser refletida aqui.
+    """
+    try:
+        from anonimizacao.services.anonimizacao import (
+            pseudonimizar_paciente as _canonico,
+        )
+        return _canonico(cd_paciente)
+    except Exception:
+        import hashlib
+        import os as _os
+        salt = _os.environ.get('ANON_SALT', 'anonclin_default_salt')
+        return hashlib.sha256(f'{salt}{cd_paciente}'.encode('utf-8')).hexdigest()
+
+
+def registrar_phi(coletor, tipo, valor):
+    """
+    Registra um valor de PHI no coletor e devolve o placeholder correspondente.
+
+    Sem coletor, devolve o placeholder simples de sempre ('__DATA__'), preservando
+    exatamente o comportamento anterior do pipeline.
+    """
+    if coletor is None:
+        return f'__{tipo}__'
+    coletor.append({'tipo': tipo, 'valor': valor})
+    return f'__{tipo}_{len(coletor):04d}__'
+
+
+def desnumerar_placeholders(texto):
+    """
+    Converte placeholders numerados de volta à forma simples:
+    '__DATA_0001__' → '__DATA__'.
+
+    Usado na exportação do corpus para anotação, para que o anotador veja exatamente o
+    mesmo texto de antes. O vínculo com o valor original fica guardado no coletor, pela
+    posição.
+    """
+    if not isinstance(texto, str):
+        return ''
+    return re.sub(r'__([A-Z]+)_\d{4}__', r'__\1__', texto)
+
+
+_RE_PLACEHOLDER_NUMERADO = re.compile(r'__([A-Z]+)_(\d{4})__')
+
+
+def extrair_phi_da_sentenca(tokens_numerados, coletor_documento):
+    """
+    Religa os placeholders numerados de uma sentença aos valores originais do documento.
+
+    Recebe os tokens de UMA sentença ainda com placeholders numerados e o coletor do
+    documento inteiro; devolve a lista de PHI presentes nessa sentença, ancorados pela
+    POSIÇÃO do token, que é a chave estável para a substituição por surrogate, já que
+    sobrevive ao descarte de sentenças curtas e à seleção estratificada.
+
+        [{'posicao': 3, 'tipo': 'DATA', 'valor': '2025-05-12'}, ...]
+
+    A numeração é global ao documento e serve só como ponte entre a normalização e este
+    ponto; depois daqui ela é descartada e os tokens voltam à forma simples.
+    """
+    phi = []
+    for posicao, token in enumerate(tokens_numerados):
+        m = _RE_PLACEHOLDER_NUMERADO.fullmatch(token)
+        if not m:
+            continue
+        indice = int(m.group(2)) - 1
+        if 0 <= indice < len(coletor_documento):
+            registro = coletor_documento[indice]
+            phi.append({
+                'posicao': posicao,
+                'tipo':    registro['tipo'],
+                'valor':   registro['valor'],
+            })
+    return phi
+
+
+def limpar_tokens_numerados(tokens):
+    """Devolve os tokens com os placeholders na forma simples ('__DATA__')."""
+    return [desnumerar_placeholders(t) for t in tokens]
+# Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.3b) Captura de PHI estrutural
+
+
+def mascarar_datas_horas(texto, coletor=None):
     """
     Substitui datas ISO por __DATA__ e datetime ISO por __DATA__ __HORA__.
     Deve ser chamada DEPOIS de normalizar_datas_no_texto().
     Horas isoladas são tratadas por mascarar_horas(), chamada a seguir no pipeline.
+
+    coletor: ver registrar_phi(). Quando informado, preserva o valor original e
+    numera o placeholder.
     """
     if not isinstance(texto, str):
         return ''
+
+    def _cb_datahora(m):
+        # "2026-08-04 07:09:30" carrega dois PHI distintos, então registra os dois
+        data, _, hora = m.group(0).partition(' ')
+        return (f"{registrar_phi(coletor, 'DATA', data)} "
+                f"{registrar_phi(coletor, 'HORA', hora)}")
+
     # Data+hora com segundos: "2026-08-04 07:09:30" → "__DATA__ __HORA__"
-    texto = re.sub(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\b', '__DATA__ __HORA__', texto)
+    texto = re.sub(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\b', _cb_datahora, texto)
     # Data+hora: "2026-08-04 07:09" → "__DATA__ __HORA__"
-    texto = re.sub(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}\b', '__DATA__ __HORA__', texto)
+    texto = re.sub(r'\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}\b', _cb_datahora, texto)
     # Data isolada: "2026-08-04" → "__DATA__"
-    texto = re.sub(r'\b\d{4}-\d{2}-\d{2}\b', '__DATA__', texto)
+    texto = re.sub(r'\b\d{4}-\d{2}-\d{2}\b',
+                   lambda m: registrar_phi(coletor, 'DATA', m.group(0)), texto)
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4) Normalização de datas → ISO 8601
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.4b) Mascaramento horas → __HORA__
-def mascarar_horas(texto):
+def mascarar_horas(texto, coletor=None):
     """
     Substitui formatos de hora isolados por __HORA__.
     Deve ser chamada DEPOIS de mascarar_datas_horas() para não conflitar com
@@ -274,47 +407,50 @@ def mascarar_horas(texto):
     if not isinstance(texto, str):
         return ''
 
+    def _cb(m):
+        return registrar_phi(coletor, 'HORA', m.group(0))
+
     # Grupo 1: milissegundos - "07:09:30.123" / "07:09:30,123"
-    texto = re.sub(r'\b\d{1,2}:\d{1,2}:\d{1,2}[.,]\d{1,3}\b', '__HORA__', texto)
+    texto = re.sub(r'\b\d{1,2}:\d{1,2}:\d{1,2}[.,]\d{1,3}\b', _cb, texto)
 
     # Grupo 2: com segundos - "07:09:30", "7:9:30", "07:9:30"
-    texto = re.sub(r'\b\d{1,2}:\d{1,2}:\d{1,2}\b', '__HORA__', texto)
+    texto = re.sub(r'\b\d{1,2}:\d{1,2}:\d{1,2}\b', _cb, texto)
 
     # Grupo 3: AM/PM - "07:30 AM", "7:30PM", "07:30 a.m.", "07:30 p.m."
     texto = re.sub(
         r'\b\d{1,2}:\d{1,2}\s*(?:AM|PM|a\.m\.|p\.m\.)\b',
-        '__HORA__', texto, flags=re.IGNORECASE,
+        _cb, texto, flags=re.IGNORECASE,
     )
 
     # Grupo 4: sufixo h - "14:30h", "9:30h"
-    texto = re.sub(r'\b\d{1,2}:\d{1,2}h\b', '__HORA__', texto, flags=re.IGNORECASE)
+    texto = re.sub(r'\b\d{1,2}:\d{1,2}h\b', _cb, texto, flags=re.IGNORECASE)
 
     # Grupo 5: HH:MM simples - "07:09", "7:9", "07:9", "7:09", "15:30HS", "__DATA__07:09"
     # Usa lookahead/lookbehind em vez de \b para capturar hora colada (15:30HS, 23:21hMOTIVO, __DATA__07:44)
-    texto = re.sub(r'(?<!\d)\d{1,2}:\d{1,2}(?!\d)', '__HORA__', texto)
+    texto = re.sub(r'(?<!\d)\d{1,2}:\d{1,2}(?!\d)', _cb, texto)
 
     # Grupo 6: com segundos e min/m - "14h30min45", "9h30m45", "14h 30min 45"
     texto = re.sub(
         r'\b\d{1,2}h\s*\d{1,2}\s*(?:min|m)\s*\d{1,2}\b',
-        '__HORA__', texto, flags=re.IGNORECASE,
+        _cb, texto, flags=re.IGNORECASE,
     )
 
     # Grupo 7: com min/m (com ou sem espaco) - "14h30min", "9h 30m", "14h 30min"
     texto = re.sub(
         r'\b\d{1,2}h\s*\d{1,2}\s*(?:min|m)\b',
-        '__HORA__', texto, flags=re.IGNORECASE,
+        _cb, texto, flags=re.IGNORECASE,
     )
 
     # Grupo 8: HHhMM - "14h30", "9h05"
-    texto = re.sub(r'\b\d{1,2}h\d{1,2}\b', '__HORA__', texto, flags=re.IGNORECASE)
+    texto = re.sub(r'\b\d{1,2}h\d{1,2}\b', _cb, texto, flags=re.IGNORECASE)
 
     # Grupo 9: HHh / Hh - "14h", "9h"
-    texto = re.sub(r'\b\d{1,2}h\b', '__HORA__', texto, flags=re.IGNORECASE)
+    texto = re.sub(r'\b\d{1,2}h\b', _cb, texto, flags=re.IGNORECASE)
 
     # Grupo 10: "as ## horas" - horario especifico por extenso
     texto = re.sub(
         r'\b\xE0s\s+\d{1,2}\s+horas?\b',
-        '__HORA__', texto, flags=re.IGNORECASE,
+        _cb, texto, flags=re.IGNORECASE,
     )
 
     return texto
@@ -513,7 +649,7 @@ def corrigir_erros_digitacao(texto):
 
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.5) Mascaramento CPF → __CPF__
-def mascarar_cpf(texto):
+def mascarar_cpf(texto, coletor=None):
     # O CPF é um identificador pessoal sensível, e deve ser mascarado para proteger a privacidade dos pacientes. 
     # O mascaramento não anonimiza definitivamente o CPF, mas reduz o risco de exposição acidental e protege esses padrões 
     # de serem fragmentados pela tokenização ou confundidos com outros PHI. 
@@ -524,18 +660,20 @@ def mascarar_cpf(texto):
     if not isinstance(texto, str):
         return ''
     # Formatos com pontuação: 000.000.000-00 e 000.000.000.00
-    texto = re.sub(r'\b\d{3}\.\d{3}\.\d{3}[-\.]\d{2}\b', '__CPF__', texto)
+    texto = re.sub(r'\b\d{3}\.\d{3}\.\d{3}[-\.]\d{2}\b',
+                   lambda m: registrar_phi(coletor, 'CPF', m.group(0)), texto)
     # Formato sem pontuação: apenas quando precedido do rótulo "CPF" (evita falsos positivos com CNS e prontuários)
+    # Aqui só o grupo interno é substituído. O valor registrado é o número, não o rótulo.
     texto = re.sub(
         r'(?i)\bCPF\s*[:\-]?\s*(\b\d{11}\b)',
-        lambda m: m.group(0).replace(m.group(1), '__CPF__'),
+        lambda m: m.group(0).replace(m.group(1), registrar_phi(coletor, 'CPF', m.group(1))),
         texto,
     )
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.5) Mascaramento CPF → __CPF__
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.6) Mascaramento telefone → __TELEFONE__
-def mascarar_telefone(texto):
+def mascarar_telefone(texto, coletor=None):
     # Telefones aparecem em múltiplos formatos no texto clínico.
     # O mascaramento evita que o tokenizador fragmente o número em vários tokens
     # e protege esse PHI de ser ignorado pelo modelo NER.
@@ -571,33 +709,37 @@ def mascarar_telefone(texto):
 
     if not isinstance(texto, str):
         return ''
+
+    def _cb(m):
+        return registrar_phi(coletor, 'TELEFONE', m.group(0))
+
     # Com DDD entre parênteses e hífen: (dd) 9999-9999 ou (dd) 99999-9999
-    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\s*-\s*\d{4}', '__TELEFONE__', texto)
+    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\s*-\s*\d{4}', _cb, texto)
     # Com DDD entre parênteses e ponto como separador: (dd) 99999.9999
     # Ex: (27) 99706.2830
-    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\.\d{4}', '__TELEFONE__', texto)
+    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\.\d{4}', _cb, texto)
     # Com DDD entre parênteses + espaço entre os grupos: (dd) 99999 9999
     # Ex: (27) 99807 9300
-    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\s+\d{4}', '__TELEFONE__', texto)
+    texto = re.sub(r'\(\d{2}\)\s*\d{4,5}\s+\d{4}', _cb, texto)
     # Com DDD entre parênteses sem separador: (dd) 999999999 ou (dd) 99999999
     # Ex: (27) 999826676
-    texto = re.sub(r'\(\d{2}\)\s*\d{8,9}', '__TELEFONE__', texto)
+    texto = re.sub(r'\(\d{2}\)\s*\d{8,9}', _cb, texto)
     # Formato fragmentado: DDD + espaço + 9 + espaço + 4 dígitos + espaço + 4 dígitos
     # Ex: 27 9 9722 3137
-    texto = re.sub(r'\b\d{2}\s+9\s+\d{4}\s+\d{4}\b', '__TELEFONE__', texto)
+    texto = re.sub(r'\b\d{2}\s+9\s+\d{4}\s+\d{4}\b', _cb, texto)
     # DDD + espaço + 5 dígitos + espaço + hífen + espaço + 4 dígitos
     # Ex: 27 99612 - 0360
-    texto = re.sub(r'\b\d{2}\s+\d{4,5}\s+-\s+\d{4}\b', '__TELEFONE__', texto)
+    texto = re.sub(r'\b\d{2}\s+\d{4,5}\s+-\s+\d{4}\b', _cb, texto)
     # Com DDD sem parênteses e hífen: dd 9999-9999 ou dd 99999-9999
     # Ex: 27 33767-7523, 27 33767 - 7523
-    texto = re.sub(r'\b\d{2}\s*\d{4,5}\s*-\s*\d{4}\b', '__TELEFONE__', texto)
+    texto = re.sub(r'\b\d{2}\s*\d{4,5}\s*-\s*\d{4}\b', _cb, texto)
     # DDD + espaço + 9 dígitos sem hífen: 27 992867927
-    texto = re.sub(r'\b\d{2}\s+\d{9}\b', '__TELEFONE__', texto)
+    texto = re.sub(r'\b\d{2}\s+\d{9}\b', _cb, texto)
     # Sem formatação: 10 ou 11 dígitos seguidos (DDD + número)
-    texto = re.sub(r'\b\d{10,11}\b', '__TELEFONE__', texto)
+    texto = re.sub(r'\b\d{10,11}\b', _cb, texto)
     # Número com ponto como separador, sem DDD: 99999.9999 ou 9999.9999
     # Ex: 99874.5657 — ponto é separador do sistema MV, não decimal
-    texto = re.sub(r'\b\d{4,5}\.\d{4}\b', '__TELEFONE__', texto)
+    texto = re.sub(r'\b\d{4,5}\.\d{4}\b', _cb, texto)
     # Protecao contra colisao com RG/CEP (identificado 24/07/2026 na regeneracao do
     # corpus, Task #25): RG de 9 digitos comecando com 9 e CEP mal formatado (4+4
     # digitos com hifen) coincidem estruturalmente com os padroes de celular/fixo
@@ -606,8 +748,8 @@ def mascarar_telefone(texto):
     def _protege_rotulo(m, rotulos):
         contexto_anterior = texto[max(0, m.start() - 12):m.start()]
         if re.search(rf'(?i)\b(?:{rotulos})\s*[:\-]?\s*$', contexto_anterior):
-            return m.group(0)
-        return '__TELEFONE__'
+            return m.group(0)          # não é telefone: devolve intacto, sem registrar
+        return registrar_phi(coletor, 'TELEFONE', m.group(0))
 
     # Celular sem DDD: 9 dígitos começando com 9 (ex: 998387639)
     # NAO mascara se precedido de "RG" (RG de 9 digitos comecando com 9 e possivel)
@@ -616,7 +758,7 @@ def mascarar_telefone(texto):
     # No ES (e na maioria dos DDDs brasileiros), fixo sempre começa com 3;
     # exigir esse dígito inicial evita falso positivo com outros números de
     # 8 dígitos (nº de exame, prontuário, etc.) que não têm esse padrão.
-    texto = re.sub(r'\b3\d{7}\b', '__TELEFONE__', texto)
+    texto = re.sub(r'\b3\d{7}\b', _cb, texto)
     # Fixo sem DDD: 9999-9999 ou 99999-9999 (4 ou 5 digitos antes do hifen)
     # Ex: 9999-9999, 99613 - 9023 (com espacos ao redor do hifen)
     # NAO mascara se precedido de "CEP" (CEP mal formatado, ex: "2916 - 0021")
@@ -627,14 +769,15 @@ def mascarar_telefone(texto):
         r'(?i)(?:NETA|NETO|FILHA|FILHO|MAE|MÃE|PAI|IRMAO|IRMÃO|IRMA|IRMÃ|ESPOSO|ESPOSA'
         r'|CONJUGE|CÔNJUGE|FAMILIAR|RESPONSAVEL|RESPONSÁVEL|TEL|FONE|CELULAR|CEL|CONTATO)'
         r'\s+(\d{2}\s*-\s*\d+\.\d+\s*-\s*\d{4})',
-        lambda m: m.group(0).replace(m.group(1), '__TELEFONE__'),
+        lambda m: m.group(0).replace(
+            m.group(1), registrar_phi(coletor, 'TELEFONE', m.group(1))),
         texto,
     )
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.6) Mascaramento telefone → __TELEFONE__
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.7) Mascaramento CEP → __CEP__
-def mascarar_cep(texto):
+def mascarar_cep(texto, coletor=None):
     # CEP identifica endereço do paciente, um PHI sensível.
     # Formatos cobertos:
     # - 12345-678  → formato padrão com hífen (mascarado sempre)
@@ -646,14 +789,16 @@ def mascarar_cep(texto):
         return ''
 
     # Formato com hífen: 00000-000 — suficientemente específico, mascarar sempre
-    texto = re.sub(r'\b\d{5}-\d{3}\b', '__CEP__', texto)
+    texto = re.sub(r'\b\d{5}-\d{3}\b',
+                   lambda m: registrar_phi(coletor, 'CEP', m.group(0)), texto)
 
     # Formato sem hífen: 00000000 — só mascarar quando há contexto de endereço próximo
+    # Só o grupo interno é substituído. Registra o número, não o rótulo que o precede.
     texto = re.sub(
         r'(?i)(?:CEP|ENDERE[CÇ]O|END\.?|RUA|AV\.?|AVENIDA|BAIRRO|LOGRADOURO)'
         r'\s*[:\-]?\s*'
         r'(\b\d{8}\b)',
-        lambda m: m.group(0).replace(m.group(1), '__CEP__'),
+        lambda m: m.group(0).replace(m.group(1), registrar_phi(coletor, 'CEP', m.group(1))),
         texto
     )
 
@@ -661,7 +806,7 @@ def mascarar_cep(texto):
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.7) Mascaramento CEP → __CEP__
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.8) Mascaramento e-mail → __EMAIL__
-def mascarar_email(texto):
+def mascarar_email(texto, coletor=None):
     # E-mail é PHI direto — identifica o paciente ou familiar.
     # A regex cobre o formato padrão: usuario@dominio.extensao
     # Não tenta cobrir todos os casos da RFC 5322 — apenas os formatos
@@ -669,14 +814,28 @@ def mascarar_email(texto):
 
     if not isinstance(texto, str):
         return ''
-    texto = re.sub(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', '__EMAIL__', texto)
+    texto = re.sub(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',
+                   lambda m: registrar_phi(coletor, 'EMAIL', m.group(0)), texto)
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - 1.2.8) Mascaramento e-mail → __EMAIL__
 
 # Início - 1) Pré-processamento - 1.2) Normalização Textual - Pipeline completo
-def normalizar_texto(texto):
+def normalizar_texto(texto, coletor=None):
     # Aplica todas as normalizações em sequência sobre um texto clínico bruto.
     # A ordem é intencional: limpeza de base → estrutura → padrões numéricos → padrões alfanuméricos.
+    #
+    # coletor (opcional): lista que recebe os valores originais de cada PHI mascarado,
+    # na ordem em que foram substituídos. Ver registrar_phi().
+    #   - None  → comportamento idêntico ao anterior; placeholders simples (__DATA__).
+    #   - []    → valores preservados; placeholders numerados (__DATA_0001__).
+    # Necessário para a geração de surrogates verossímeis: sem isso o valor original é
+    # destruído aqui, antes de a sentença chegar ao anotador.
+    #
+    # ⚠ LIMITAÇÃO CONHECIDA: normalizar_datas_no_texto() roda ANTES do mascaramento e já
+    # converteu a data para ISO 8601. O valor registrado para DATA é, portanto, a forma
+    # ISO ('2025-05-12'), não a forma original do texto clínico ('12/05/2025'). O corpus
+    # com surrogates terá datas em ISO, o que é coerente com o corpus normalizado sobre
+    # todo o Exp 002 já roda, mas registrado aqui como decisão, não como descuido.
 
     # Garante que todos os caracteres acentuados estejam na forma composta (1 caractere por acento)
     texto = normalizar_unicode(texto)
@@ -691,25 +850,25 @@ def normalizar_texto(texto):
     texto = corrigir_erros_digitacao(texto)
 
     # Detecta datas nos 4 formatos encontrados no dataset e converte para ISO 8601 (YYYY-MM-DD)
-    texto = normalizar_datas_no_texto(texto)
+    texto = normalizar_datas_no_texto(texto, coletor)
 
     # Substitui datas ISO (YYYY-MM-DD) e datetime ISO por __DATA__ / __DATA__ __HORA__
-    texto = mascarar_datas_horas(texto)
+    texto = mascarar_datas_horas(texto, coletor)
 
     # Substitui horas isoladas (todos os formatos) por __HORA__
-    texto = mascarar_horas(texto)
+    texto = mascarar_horas(texto, coletor)
 
     # Substitui CPF (com ou sem pontuação) por __CPF__
-    texto = mascarar_cpf(texto)
+    texto = mascarar_cpf(texto, coletor)
 
     # Substitui telefones (com/sem DDD, com/sem formatação) por __TELEFONE__
-    texto = mascarar_telefone(texto)
+    texto = mascarar_telefone(texto, coletor)
 
     # Substitui CEP (com ou sem hífen) por __CEP__
-    texto = mascarar_cep(texto)
+    texto = mascarar_cep(texto, coletor)
 
     # Substitui endereços de e-mail por __EMAIL__
-    texto = mascarar_email(texto)
+    texto = mascarar_email(texto, coletor)
 
     return texto
 # Fim - 1) Pré-processamento - 1.2) Normalização Textual - Pipeline completo
@@ -993,7 +1152,7 @@ def exportar_jsonl(lista_documentos, caminho_saida):
 
     with open(caminho_saida, 'w', encoding='utf-8') as f:
         for doc in lista_documentos:
-            for sentenca_tokens in doc['sentencas_tokens']:
+            for indice, sentenca_tokens in enumerate(doc['sentencas_tokens']):
                 registro = {
                     'doc_id':   doc['doc_id'],
                     'doc_type': doc['doc_type'],
@@ -1001,9 +1160,64 @@ def exportar_jsonl(lista_documentos, caminho_saida):
                     # Labels inicialmente todas O — serão atualizadas após anotação no Doccano
                     'labels':   ['O'] * len(sentenca_tokens),
                 }
+                # Campos da Fase 2. Só aparecem quando o pipeline os produz, de modo que
+                # um corpus gerado sem eles continua sendo lido normalmente.
+                #
+                # hash_paciente: identificador do paciente já pseudonimizado (SHA-256 com
+                #   salt). É a chave de consistência do gerador de surrogates: "a mesma
+                #   pessoa recebe sempre o mesmo nome fictício, o homônimo recebe outro".
+                #   Nunca gravar o cd_paciente em claro aqui.
+                # sentenca_idx: posição da sentença dentro do documento. É o que liga esta
+                #   linha à linha correspondente do arquivo *_phi.jsonl.
+                if 'hash_paciente' in doc:
+                    registro['hash_paciente'] = doc['hash_paciente']
+                    registro['sentenca_idx'] = indice
                 # ensure_ascii=False preserva acentos no arquivo de saída
                 f.write(json.dumps(registro, ensure_ascii=False) + '\n')
 # Fim - 1) Pré-processamento - 1.5) Exportação do Corpus Pré-processado - 1.5.2) Exportação JSONL
+
+# Início - 1) Pré-processamento - 1.5) Exportação - 1.5.2b) Mapa de PHI (arquivo separado)
+def exportar_phi_jsonl(lista_documentos, caminho_jsonl_corpus):
+    """
+    Grava o mapa de PHI num arquivo irmão do corpus, com sufixo `_phi`.
+
+    Ex: 'Experimento_002_corpus.jsonl' → 'Experimento_002_corpus_phi.jsonl'
+
+    Uma linha por sentença, alinhada com o corpus pela chave (doc_id, sentenca_idx):
+
+        {"doc_id": 12, "sentenca_idx": 3,
+         "phi": [{"posicao": 5, "tipo": "DATA", "valor": "2025-05-12"}]}
+
+    Sentenças sem PHI estrutural também entram, com lista vazia, para que a contagem de
+    linhas do mapa bata exatamente com a de sentenças do corpus. É essa igualdade que
+    permite detectar dessincronização entre os dois arquivos.
+
+    🔴 ARQUIVO SENSÍVEL. Concentra PHI real (datas, CPFs, telefones, CEPs, e-mails) em
+    forma limpa e estruturada. É deliberadamente separado do corpus: nunca versionar,
+    nunca publicar, nunca copiar para fora do perímetro institucional.
+
+    Retorna o caminho gravado.
+    """
+    import json
+
+    if caminho_jsonl_corpus.endswith('.jsonl'):
+        caminho_saida = caminho_jsonl_corpus[:-len('.jsonl')] + '_phi.jsonl'
+    else:
+        caminho_saida = caminho_jsonl_corpus + '_phi.jsonl'
+
+    with open(caminho_saida, 'w', encoding='utf-8') as f:
+        for doc in lista_documentos:
+            sentencas_phi = doc.get('sentencas_phi') or []
+            for indice, phi in enumerate(sentencas_phi):
+                registro = {
+                    'doc_id':       doc['doc_id'],
+                    'sentenca_idx': indice,
+                    'phi':          phi,
+                }
+                f.write(json.dumps(registro, ensure_ascii=False) + '\n')
+
+    return caminho_saida
+# Fim - 1) Pré-processamento - 1.5) Exportação - 1.5.2b) Mapa de PHI (arquivo separado)
 
 # Início - 1) Pré-processamento - 1.5) Exportação - 1.5.3) Seleção Estratificada por PHI
 def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_entidade=None, n_total=None):
@@ -1167,7 +1381,8 @@ def selecionar_estratificado_por_phi(caminho_jsonl, caminho_saida, cotas_por_ent
 
 # Início - 1) Pré-processamento - Pipeline completo
 def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres,
-                               caminho_conll, caminho_jsonl, amostra=None, n_total_anotacao=None):
+                               caminho_conll, caminho_jsonl, amostra=None, n_total_anotacao=None,
+                               capturar_phi=False, propagar_paciente=False):
     # Orquestra todas as etapas do pré-processamento sobre os dois arquivos CSV.
     # Parâmetros:
     #   arquivo_prescricoes   : caminho ou objeto de arquivo do CSV de prescrições
@@ -1177,6 +1392,17 @@ def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres,
     #   amostra               : se informado, limita registros por tipo (dev)
     #   n_total_anotacao      : total de sentenças para corpus_anotacao.jsonl
     #                           (PHI-estratificadas + complemento aleatório)
+    #   capturar_phi          : se True, preserva os valores originais do PHI mascarado
+    #                           por regex e grava um arquivo *_phi.jsonl separado.
+    #                           Default False: o pipeline se comporta exatamente como
+    #                           antes e nenhum arquivo extra é criado.
+    #   propagar_paciente     : se True, grava no JSONL o hash do cd_paciente e o índice
+    #                           da sentença dentro do documento. Necessário para a
+    #                           consistência de surrogate por paciente (Fase 2).
+    #                           Default False: corpus idêntico ao anterior.
+    #
+    # 🔴 O arquivo *_phi.jsonl é uma lista concentrada de PHI real. Nunca versionar,
+    # nunca publicar, nunca sair do perímetro institucional.
 
     # 1.1 — Leitura e seleção de colunas
     df_prescricoes = ler_prescricoes(arquivo_prescricoes)
@@ -1199,7 +1425,10 @@ def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres,
 
     for idx, linha in df.iterrows():
         # 1.2 — Normalização textual
-        texto_normalizado = normalizar_texto(linha['texto'])
+        # Com capturar_phi, o coletor recebe o valor original de cada PHI mascarado e os
+        # placeholders saem numerados; sem ele, o comportamento é exatamente o de antes.
+        coletor = [] if capturar_phi else None
+        texto_normalizado = normalizar_texto(linha['texto'], coletor)
 
         # 1.3 — Segmentação em sentenças
         sentencas = segmentar_documento(texto_normalizado)
@@ -1210,21 +1439,48 @@ def executar_preprocessamento(arquivo_prescricoes, arquivo_pareceres,
         # Descarta sentenças que ficaram vazias após tokenização
         sentencas_tokens = [t for t in sentencas_tokens if t]
 
+        # Religa cada placeholder numerado ao seu valor original, ancorado pela posição
+        # do token, e devolve os tokens à forma simples. O corpus exportado fica
+        # idêntico ao de antes, e o PHI vai para um arquivo separado.
+        sentencas_phi = []
+        if capturar_phi:
+            for tokens_sentenca in sentencas_tokens:
+                sentencas_phi.append(extrair_phi_da_sentenca(tokens_sentenca, coletor))
+            sentencas_tokens = [limpar_tokens_numerados(t) for t in sentencas_tokens]
+
         # Acumula para exportação CoNLL (todas as sentenças de todos os docs)
         lista_sentencas_tokens.extend(sentencas_tokens)
 
         # Acumula para exportação JSONL (um registro por documento com todas as sentenças)
-        lista_documentos.append({
+        documento = {
             'doc_id':          idx,
             'doc_type':        linha['doc_type'],
             'sentencas_tokens': sentencas_tokens,
-        })
+        }
+        if capturar_phi:
+            documento['sentencas_phi'] = sentencas_phi
+
+        # Fase 2: identificador do paciente, pseudonimizado antes de sair do DataFrame.
+        # Sem isto, a consistência de surrogate por paciente é irrealizável: o doc_id é
+        # apenas o índice posicional do DataFrame, não identifica a pessoa.
+        if propagar_paciente and 'cd_paciente' in df.columns:
+            documento['hash_paciente'] = pseudonimizar_paciente(linha['cd_paciente'])
+
+
+        lista_documentos.append(documento)
 
     # 1.5.1 — Exporta corpus completo no formato CoNLL (para Doccano)
     exportar_conll(lista_sentencas_tokens, caminho_conll)
 
     # 1.5.2 — Exporta corpus completo no formato JSONL (para BERT)
     exportar_jsonl(lista_documentos, caminho_jsonl)
+
+    # 1.5.2b) Exporta o mapa de PHI num arquivo SEPARADO do corpus
+    # 🔴 Este arquivo concentra PHI real. Fica fora do corpus de propósito: o corpus
+    # pode circular internamente, este não.
+    caminho_phi = None
+    if capturar_phi:
+        caminho_phi = exportar_phi_jsonl(lista_documentos, caminho_jsonl)
 
     # 1.5.3 — Gera corpus_anotacao.jsonl com seleção estratificada por PHI
     caminho_anotacao = caminho_jsonl.replace('corpus.jsonl', 'corpus_anotacao.jsonl')

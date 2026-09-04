@@ -14,6 +14,7 @@ from .services.fila import (
     todos_concluiram,
 )
 from .services.kappa import calcular_kappa_sessao
+from .services.validacao_bio import validar_sequencia_bio, descrever_correcoes
 from .services.exportador import (
     identificar_discordancias,
     salvar_adjudicacao,
@@ -172,6 +173,12 @@ def salvar_anotacao(request, sessao_id):
     sentenca = get_object_or_404(Sentenca, id=dados['sentenca_id'], sessao=sessao)
     labels   = dados['labels']  # lista de labels alinhada com os tokens
 
+    # Confere o esquema BIO antes de gravar. Uma entidade não pode começar com I-, e
+    # a tela não impede que isso seja marcado. Sem esta checagem, o erro só apareceria
+    # meses depois, no treinamento e na avaliação, sem nada apontando para a origem.
+    # A auditoria de 02/09/2026 encontrou 22 casos assim no corpus do Exp 002.
+    labels, correcoes = validar_sequencia_bio(labels)
+
     # Salva ou atualiza cada label por posição via AJAX — sem reload de página
     for pos, label in enumerate(labels):
         AnotacaoToken.objects.update_or_create(
@@ -181,7 +188,13 @@ def salvar_anotacao(request, sessao_id):
             defaults={'label': label},
         )
 
-    return JsonResponse({'status': 'ok'})
+    # Devolve o que foi ajustado para a interface mostrar. Corrigir em silêncio seria
+    # trocar um problema por outro: o anotador precisa saber que a marcação dele mudou.
+    return JsonResponse({
+        'status':    'ok',
+        'correcoes': correcoes,
+        'aviso':     descrever_correcoes(correcoes, sentenca.tokens),
+    })
 # Fim - A) Anotador Integrado - A.2) Anotação - A.2.4) Salvar Anotação
 
 

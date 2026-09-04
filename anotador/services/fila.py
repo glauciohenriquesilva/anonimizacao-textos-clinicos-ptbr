@@ -40,13 +40,19 @@ def carregar_corpus_na_sessao(sessao, caminho_jsonl, n_amostras=None):
         registros = selecionados
 
     # Insere as sentenças selecionadas no banco
+    #
+    # hash_paciente e sentenca_idx (Fase 2) só existem em corpora gerados com
+    # propagar_paciente=True. Usar .get() mantém a compatibilidade: um JSONL antigo
+    # carrega normalmente, com os dois campos nulos.
     for ordem, registro in enumerate(registros):
         Sentenca.objects.create(
-            sessao   = sessao,
-            doc_id   = registro['doc_id'],
-            doc_type = registro['doc_type'],
-            ordem    = ordem,
-            tokens   = registro['tokens'],
+            sessao        = sessao,
+            doc_id        = registro['doc_id'],
+            doc_type      = registro['doc_type'],
+            ordem         = ordem,
+            tokens        = registro['tokens'],
+            hash_paciente = registro.get('hash_paciente'),
+            sentenca_idx  = registro.get('sentenca_idx'),
         )
 
     return len(registros)  # total de sentenças carregadas
@@ -62,7 +68,7 @@ def proxima_sentenca(sessao, anotador):
     sentencas_anotadas = AnotacaoToken.objects.filter(
         sentenca__sessao=sessao,
         anotador=anotador,
-    ).values_list('sentenca_id', flat=True).distinct()
+    ).values_list('sentenca_id', flat=True).order_by().distinct()
 
     proxima = Sentenca.objects.filter(
         sessao=sessao,
@@ -84,7 +90,7 @@ def progresso_anotador(sessao, anotador):
     anotadas = AnotacaoToken.objects.filter(
         sentenca__sessao=sessao,
         anotador=anotador,
-    ).values('sentenca_id').distinct().count()
+    ).values('sentenca_id').order_by().distinct().count()
 
     return {
         'total':     total,
@@ -103,15 +109,21 @@ def todos_concluiram(sessao):
     total_sentencas = Sentenca.objects.filter(sessao=sessao).count()
 
     # Busca todos os anotadores que participaram da sessão
+    # O .order_by() vazio antes do .distinct() nao e decorativo. O Meta de
+    # AnotacaoToken define ordering = ['sentenca', 'posicao'], e o Django inclui as
+    # colunas de ordenacao no SELECT quando ha ordering no Meta. O DISTINCT passa
+    # entao a considerar essas colunas tambem, e nao elimina duplicata nenhuma:
+    # o resultado vem com uma linha por token em vez de uma por anotador.
+    # Limpar a ordenacao devolve ao DISTINCT o comportamento esperado.
     anotadores = AnotacaoToken.objects.filter(
         sentenca__sessao=sessao,
-    ).values_list('anotador_id', flat=True).distinct()
+    ).values_list('anotador_id', flat=True).order_by().distinct()
 
     for anotador_id in anotadores:
         anotadas = AnotacaoToken.objects.filter(
             sentenca__sessao=sessao,
             anotador_id=anotador_id,
-        ).values('sentenca_id').distinct().count()
+        ).values('sentenca_id').order_by().distinct().count()
 
         if anotadas < total_sentencas:
             return False
