@@ -55,6 +55,22 @@ PRENOMES_M = [
     'Diego', 'Emerson', 'Fábio', 'Gilberto', 'Hélio', 'Ivan', 'Jorge', 'Luciano',
     'Maurício', 'Nilton', 'Osvaldo', 'Rafael', 'Sebastião', 'Valdir',
     'José', 'João', 'Pedro', 'Luiz', 'Francisco', 'Manoel', 'Raimundo',
+    'Adriano', 'Alexandre', 'Alex', 'Anderson', 'André', 'Arthur', 'Augusto',
+    'Benedito', 'Bernardo', 'Caio', 'Celso', 'César', 'Cristiano', 'Daniel', 'Danilo',
+    'Davi', 'Denis', 'Douglas', 'Edson', 'Elias', 'Enzo', 'Evandro', 'Everton',
+    'Felipe', 'Flávio', 'Gabriel', 'Geraldo', 'Germano', 'Gilson', 'Guilherme',
+    'Heitor', 'Hugo', 'Igor', 'Isaac', 'Jair', 'Jefferson', 'Jonas', 'Josué', 'Juliano',
+    'Júlio', 'Kleber', 'Lauro', 'Leandro', 'Lucas', 'Marcos', 'Mário', 'Mateus',
+    'Matheus', 'Miguel', 'Moisés', 'Murilo', 'Natanael', 'Nicolas', 'Orlando',
+    'Patrick', 'Renan', 'Renato', 'Roberto', 'Robson', 'Rogério', 'Ronaldo', 'Rubens',
+    'Samuel', 'Sandro', 'Saulo', 'Silvio', 'Tiago', 'Ulisses', 'Valter', 'Vicente',
+    'Victor', 'Vitor', 'Wallace', 'Wellington', 'Wesley', 'William', 'Yuri',
+    'Adalberto', 'Ademir', 'Agnaldo', 'Altair', 'Amauri', 'Aparecido', 'Armando',
+    'Arnaldo', 'Benjamim', 'Clóvis', 'Dário', 'Domingos', 'Edgar', 'Edmilson', 'Elton',
+    'Ernesto', 'Eugênio', 'Ezequiel', 'Genivaldo', 'Getúlio', 'Horácio', 'Ismael',
+    'Jaime', 'Jeremias', 'Lázaro', 'Lourival', 'Manuel', 'Messias', 'Napoleão', 'Olavo',
+    'Pascoal', 'Reginaldo', 'Romildo', 'Severino', 'Tadeu', 'Tarcísio', 'Waldemar',
+    'Zacarias',
 ]
 
 PRENOMES_F = [
@@ -64,6 +80,20 @@ PRENOMES_F = [
     'Camila', 'Débora', 'Elaine', 'Flávia', 'Giovana', 'Ingrid', 'Joana',
     'Larissa', 'Márcia', 'Nádia', 'Priscila', 'Rosana', 'Silvana', 'Vera',
     'Maria', 'Ana', 'Francisca', 'Antônia', 'Terezinha', 'Lúcia', 'Rosa',
+    'Alessandra', 'Alice', 'Aline', 'Andréa', 'Andressa', 'Ângela', 'Aparecida',
+    'Bárbara', 'Bruna', 'Carla', 'Carolina', 'Cássia', 'Cecília', 'Célia', 'Clara',
+    'Cláudia', 'Conceição', 'Daiane', 'Denise', 'Diana', 'Edna', 'Eduarda', 'Elisa',
+    'Elisângela', 'Elizabete', 'Érica', 'Ester', 'Eva', 'Fabiana', 'Fátima', 'Glória',
+    'Graça', 'Heloísa', 'Iara', 'Ivone', 'Jaqueline', 'Jéssica', 'Joice', 'Josefa',
+    'Júlia', 'Jussara', 'Kátia', 'Laís', 'Laura', 'Letícia', 'Lídia', 'Lívia', 'Lorena',
+    'Luana', 'Luíza', 'Madalena', 'Marcela', 'Margarida', 'Marina', 'Marta', 'Michele',
+    'Miriam', 'Mônica', 'Neusa', 'Olga', 'Paula', 'Raquel', 'Rebeca', 'Regina', 'Rita',
+    'Roberta', 'Rosângela', 'Rute', 'Sabrina', 'Sandra', 'Sara', 'Sílvia', 'Sônia',
+    'Sueli', 'Tânia', 'Teresa', 'Thaís', 'Valéria', 'Vitória', 'Viviane', 'Yasmin',
+    'Zélia', 'Adelaide', 'Alzira', 'Anita', 'Aurora', 'Benedita', 'Carmem', 'Celina',
+    'Dalva', 'Dirce', 'Dulce', 'Edite', 'Elza', 'Eunice', 'Geralda', 'Hilda', 'Iolanda',
+    'Irene', 'Jandira', 'Judite', 'Leonor', 'Lourdes', 'Luzia', 'Marlene', 'Nair',
+    'Odete', 'Olinda', 'Ruth', 'Sebastiana', 'Zilda',
 ]
 
 SOBRENOMES = [
@@ -72,6 +102,20 @@ SOBRENOMES = [
     'Soares', 'Fernandes', 'Vieira', 'Barbosa', 'Rocha', 'Dias', 'Nascimento',
     'Andrade', 'Moreira', 'Nunes', 'Marques', 'Machado', 'Mendes', 'Freitas',
     'Cardoso', 'Ramos', 'Gonçalves', 'Santana', 'Teixeira', 'Araújo', 'Cunha',
+    'Costa', 'Reis', 'Anjos', 'Carmo', 'Amaral', 'Prado', 'Vale', 'Moraes', 'Paula',
+    'Assis', 'Luz', 'Azevedo', 'Barros', 'Batista', 'Borges', 'Brandão', 'Braga',
+    'Brito', 'Campos', 'Castro', 'Cavalcanti', 'Coelho', 'Correia', 'Cruz', 'Duarte',
+    'Farias', 'Figueiredo', 'Fonseca', 'Franco', 'Garcia', 'Guimarães', 'Leite',
+    'Macedo', 'Magalhães', 'Martins', 'Matos', 'Medeiros', 'Melo', 'Miranda',
+    'Monteiro', 'Moura', 'Neves', 'Pacheco', 'Peixoto', 'Pinheiro', 'Pinto', 'Pires',
+    'Queiroz', 'Rezende', 'Sales', 'Sampaio', 'Siqueira', 'Tavares', 'Toledo',
+    'Vasconcelos', 'Xavier', 'Aguiar', 'Amorim', 'Antunes', 'Bastos', 'Bezerra',
+    'Bittencourt', 'Bueno', 'Caldeira', 'Camargo', 'Chaves', 'Cordeiro', 'Couto',
+    'Dantas', 'Domingues', 'Esteves', 'Falcão', 'Gouveia', 'Lacerda', 'Leal', 'Lemos',
+    'Maciel', 'Maia', 'Mota', 'Muniz', 'Nogueira', 'Paiva', 'Paixão', 'Passos',
+    'Quintela', 'Rangel', 'Rosa', 'Seixas', 'Simões', 'Trindade', 'Valente', 'Veloso',
+    'Viana', 'Zanetti', 'Bonfim', 'Favero', 'Gasparini', 'Loureiro', 'Pimentel',
+    'Scarpati', 'Zanotti', 'Fraga', 'Lyrio', 'Piovesan', 'Dalmaso',
 ]
 
 # Partícula correta para cada sobrenome. Em português a partícula concorda com o
@@ -97,6 +141,56 @@ NOMES_LOGRADOURO = [
     'Laranjeiras', 'Monte Belo', 'Nova Esperança', 'Ouro Preto', 'Paraíso',
     'Quatro Rodas', 'Rio Branco', 'Santa Luzia', 'Três Irmãos', 'Vale Verde',
 ]
+
+# Palavras para compor nomes de lugar: bairros, distritos e municípios capixabas. O
+# gerador de endereço troca cada palavra identificadora do original por uma destas,
+# mantendo a estrutura da menção.
+PALAVRAS_DE_LUGAR = [
+    'Camburi', 'Jucutuquara', 'Maruípe', 'Goiabeiras', 'Itararé', 'Bonfim',
+    'Consolação', 'Gurigica', 'Itaparica', 'Itapuã', 'Aribiri', 'Cobilândia', 'Glória',
+    'Ibes', 'Jaburuna', 'Alvorada', 'Soteco', 'Jabaeté', 'Carapina', 'Laranjeiras',
+    'Jacaraípe', 'Manguinhos', 'Barcelona', 'Planalto', 'Serrano', 'Tubarão',
+    'Valparaíso', 'Campinho', 'Itacibá', 'Flexal', 'Santana', 'Cruzeiro', 'Tucum',
+    'Bandeirantes', 'Itanguá', 'Canaã', 'Universal', 'Areinha', 'Caxias', 'Esperança',
+    'Horizonte', 'Brasil', 'América', 'Primavera', 'Aurora', 'Colina', 'Mata', 'Praia',
+    'Barra', 'Pontal', 'Ilha', 'Morro', 'Lagoa', 'Cachoeira', 'Pedra', 'Monte', 'Campo',
+    'Ribeirão', 'Linhares', 'Colatina', 'Aracruz', 'Guarapari', 'Viana', 'Cariacica',
+    'Itapemirim', 'Marataízes', 'Anchieta', 'Piúma', 'Iconha', 'Alegre', 'Castelo',
+    'Muqui', 'Mimoso', 'Guaçuí', 'Iúna', 'Ibatiba', 'Venécia', 'Pinheiros', 'Montanha',
+    'Mucurici', 'Ecoporanga', 'Pancas', 'Guandu', 'Itaguaçu', 'Itarana', 'Fundão',
+    'Ibiraçu', 'Sooretama', 'Marilândia', 'Bananal', 'Leopoldina', 'Apiacá', 'Irupi',
+    'Mantenópolis', 'Brejetuba', 'Jardim', 'Vila', 'Parque', 'Morada', 'Bela', 'Vista',
+    'Luzia', 'Teresa', 'Inês', 'Bárbara', 'Helena', 'Antônio', 'Pedro', 'José',
+    'Francisco', 'Sebastião', 'Mateus', 'Gabriel', 'Roque', 'Domingos', 'Jerônimo',
+    'Marechal', 'Floriano', 'Afonso', 'Alfredo', 'Atílio', 'Kennedy', 'Lindenberg',
+    'Pavão', 'Valério', 'Neiva', 'Palmeiras', 'Acácias', 'Ipês', 'Cedro', 'Jacarandá',
+    'Paraíso', 'Independência', 'Guanabara', 'Tabuazeiro', 'Andorinhas', 'Resistência',
+    'Romão', 'Forte', 'Mário', 'Cypreste', 'Redenção', 'Joana', 'Estrelinha',
+    'Inhanguetá', 'Universitário', 'Comdusa', 'Jabour', 'Solon', 'Borges', 'Maria',
+    'Ortiz', 'Segurança', 'Enseada', 'Suá', 'Bento', 'Ferreira', 'Fradinhos', 'Piedade',
+    'Moscoso', 'Fonte', 'Grande', 'Caratoíra', 'Condusa', 'Vitória', 'Itaquari',
+    'Jardineiras', 'Boa', 'Sorte', 'Rosa', 'Penha', 'Ataíde', 'Divino', 'Garoto',
+    'Paul', 'Zumbi', 'Cocal', 'Vasco', 'Coutinho', 'Aviso', 'Interlagos', 'Movelar',
+    'Shell', 'Conceição', 'Bebedouro', 'Canivete', 'Rio', 'Quartel', 'Regência',
+    'Povoação', 'Desengano', 'Farias', 'Juparanã',
+]
+
+# Palavras que dão a estrutura do endereço e não identificam ninguém. Ficam como estão,
+# porque são elas que o modelo usa para reconhecer que ali há um endereço.
+ESTRUTURA_ENDERECO = {
+    'rua', 'r', 'avenida', 'av', 'travessa', 'trav', 'tv', 'alameda', 'al', 'praca',
+    'pc', 'rodovia', 'rod', 'estrada', 'estr', 'beco', 'ladeira', 'largo', 'viela',
+    'bairro', 'b', 'distrito', 'municipio', 'cidade', 'comunidade', 'assentamento',
+    'loteamento', 'residencial', 'conjunto', 'condominio', 'edificio', 'ed', 'bloco',
+    'bl', 'apartamento', 'ap', 'apt', 'apto', 'casa', 'cs', 'fundos', 'lote', 'lt',
+    'quadra', 'qd', 'km', 'br', 'es', 'numero', 'n', 'no', 'sn', 'zona', 'rural',
+    'urbana', 'interior', 'centro', 'sitio', 'fazenda', 'corrego', 'proximo', 'perto',
+    'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'na', 'ao', 'a', 'o',
+    # Qualificadores muito comuns em nome de lugar. Sozinhos não identificam: o que
+    # identifica 'São Pedro' é o 'Pedro'. Mantê-los faz o surrogate soar como lugar.
+    'sao', 'santa', 'santo', 'nova', 'novo', 'vila', 'jardim', 'parque', 'porto',
+    'boa', 'bela', 'alto', 'baixo', 'grande', 'morada', 'vista',
+}
 
 # Municípios do ES, manter a distribuição geográfica do corpus original.
 # Trocar por cidade de outro estado alteraria a distribuição e a verossimilhança.
@@ -386,6 +480,7 @@ class GeradorSurrogates:
     MODO_VEROSSIMIL = 'verossimil'
     MODO_PLACEHOLDER = 'placeholder'   # braço C: PESSOA_1, PESSOA_2...
     MODO_CELEBRIDADE = 'celebridade'   # braço C: nomes muito conhecidos
+    MODO_ORIGINAL = 'original'         # braço A: devolve o valor real, sem trocar nada
 
     # Nomes deliberadamente reconhecíveis, para a contraprova. A hipótese do orientador
     # é que o modelo os detecte com facilidade e o F1 suba artificialmente.
@@ -568,33 +663,54 @@ class GeradorSurrogates:
     # -- ENDEREÇO -----------------------------------------------------------
 
     def endereco(self, original, chave):
-        """Logradouro fictício com o mesmo tipo (rua→rua, avenida→avenida)."""
+        """
+        Endereço fictício com a mesma estrutura do original.
+
+        No corpus, endereço raramente é "rua tal, número tal". Aparece como bairro, como
+        município, como "morador de tal lugar", muitas vezes numa palavra só. Gerar sempre
+        "Rua Fulana" ensinava ao modelo um formato que quase não existe no texto real.
+
+        Por isso a troca é feita palavra por palavra:
+          - o que dá estrutura (rua, bairro, de, km, pontuação) fica como está;
+          - número vira outro número com a mesma quantidade de dígitos;
+          - o resto, que é o que identifica o lugar, vira uma palavra do catálogo.
+
+        A quantidade de palavras, a pontuação e a caixa do original são mantidas.
+        """
         if self.modo == self.MODO_PLACEHOLDER:
             return self._proximo_placeholder('ENDERECO', chave)
 
         def gerar():
             rng = self._rng('ENDERECO', chave, original)
-            tipo_original = None
-            sem_acento_upper = _sem_acento(original).upper()
-            for tipo in TIPOS_LOGRADOURO:
-                if _sem_acento(tipo).upper() in sem_acento_upper:
-                    tipo_original = tipo
-                    break
-            tipo_final = tipo_original or rng.choice(TIPOS_LOGRADOURO)
-            endereco = f'{tipo_final} {rng.choice(self.logradouros)}'
+            novas = []
+            trocou = False
+            for palavra in (original or '').split():
+                base = _sem_acento(palavra).lower().strip('.,;:()-/')
+                if not base or base in ESTRUTURA_ENDERECO or len(base) == 1:
+                    novas.append(palavra)
+                elif base.isdigit():
+                    minimo = 10 ** (len(base) - 1) if len(base) > 1 else 1
+                    numero = str(rng.randint(minimo, 10 ** len(base) - 1))
+                    novas.append(palavra.replace(palavra.strip('.,;:()-/'), numero))
+                    trocou = True
+                elif any(c.isalpha() for c in base):
+                    candidatas = [p for p in PALAVRAS_DE_LUGAR
+                                  if _sem_acento(p).lower() != base
+                                  and _sem_acento(p).lower() not in ESTRUTURA_ENDERECO]
+                    escolhida = espelhar_caixa(palavra, rng.choice(candidatas))
+                    if palavra[:1].isupper() and not palavra.isupper():
+                        escolhida = escolhida.capitalize()
+                    novas.append(escolhida)
+                    trocou = True
+                else:
+                    novas.append(palavra)
 
-            # O número segue o original: se havia número, o surrogate tem número; se não
-            # havia, não inventa. Sortear por conta própria fazia 'RUA DAS PALMEIRAS'
-            # ganhar um número inexistente e 'ALAMEDA DOS PINHEIROS, 45' perder o seu,             # em ambos os casos alterando a informação que o modelo vê.
-            numero_original = re.search(r',\s*(\d+)', original or '')
-            if numero_original:
-                # Mantém a ordem de grandeza do número original (dezena, centena, milhar)
-                casas = len(numero_original.group(1))
-                minimo = 10 ** (casas - 1) if casas > 1 else 1
-                maximo = (10 ** casas) - 1
-                endereco += f', {rng.randint(minimo, maximo)}'
-
-            return espelhar_caixa(original, endereco)
+            if not trocou:
+                # Menção feita só de palavras estruturais ('centro', 'zona rural'). Não
+                # identifica um lugar, mas foi anotada como endereço: recebe um nome de
+                # lugar para não repetir o original.
+                return espelhar_caixa(original, rng.choice(PALAVRAS_DE_LUGAR))
+            return ' '.join(novas)
 
         return self._memoizar('ENDERECO', chave, gerar, original)
 
@@ -835,6 +951,12 @@ class GeradorSurrogates:
         forma perigosa, mas o chamador deve verificar `tipos_nao_suportados()` depois de
         processar o corpus, porque um tipo não tratado é PHI que permaneceu no texto.
         """
+        # Braço A. O valor real volta para o lugar do marcador, e o corpus passa pelo
+        # mesmo caminho de código dos outros braços: mesma tokenização, mesma
+        # reconstrução de labels. Assim a única diferença entre A e B é o valor.
+        if self.modo == self.MODO_ORIGINAL:
+            return original
+
         metodo = self._DESPACHO.get((tipo or '').upper())
         if metodo is None:
             self._nao_suportados.add(tipo)
