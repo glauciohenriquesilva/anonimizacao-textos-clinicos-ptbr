@@ -197,6 +197,10 @@ def gerar_corpus(sentencas, gerador):
         registro.pop('phi', None)          # o mapa não acompanha o corpus gerado
         corpus_novo.append(registro)
 
+    # Data em formato não reconhecido volta igual ao original, ou seja, continua real.
+    # O número entra nos avisos para ficar gravado junto com a versão no banco.
+    avisos['datas_nao_deslocadas'] = gerador.estatisticas().get('datas_nao_deslocadas', 0)
+
     relatorio = {
         'sentencas':            len(corpus_novo),
         'avisos':               avisos,

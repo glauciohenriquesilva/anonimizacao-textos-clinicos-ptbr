@@ -46,6 +46,7 @@ está e não é copiado para a pasta de saída.
 import argparse
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -58,6 +59,7 @@ django.setup()
 from anonimizacao.services.aplicar_surrogates import (  # noqa: E402
     gerar_corpus,
     conferir_alinhamento,
+    _coletar_substituicoes,
 )
 from anonimizacao.services.leitor_gold import (  # noqa: E402
     carregar_gold,
@@ -67,7 +69,10 @@ from anonimizacao.services.registro_surrogates import (  # noqa: E402
     registrar_geracao,
     descrever_geracao,
 )
-from anonimizacao.services.surrogates import GeradorSurrogates  # noqa: E402
+from anonimizacao.services.surrogates import (  # noqa: E402
+    GeradorSurrogates,
+    deslocar_data_livre,
+)
 
 
 def escrever_corpus(sentencas, caminho):
@@ -88,6 +93,38 @@ def escrever_corpus(sentencas, caminho):
                 'labels':   sentenca['labels'],
             }
             arquivo.write(json.dumps(registro, ensure_ascii=False) + '\n')
+
+
+def tem_data_nao_deslocavel(sentenca):
+    """
+    Diz se a sentença tem alguma data que o gerador não consegue deslocar.
+
+    São dois casos, e nos dois o gerador devolveria a data como está, isto é, real:
+
+      - data anotada à mão em formato não reconhecido, quase sempre erro de digitação
+        ou data colada em outra palavra ('12 / 03hoje', '12 / 202');
+      - data do mapa de PHI que tem cara de ISO mas não existe no calendário, como mês
+        13 ou dia 31 de um mês de 30. A expressão regular capturou o que estava
+        escrito, e o que estava escrito era um erro de quem digitou o prontuário.
+    """
+    from datetime import date
+
+    descartavel = {'sobreposicao': 0, 'posicao_invalida': 0, 'token_inesperado': 0}
+    for sub in _coletar_substituicoes(sentenca['tokens'], sentenca['labels'],
+                                     sentenca.get('phi'), descartavel):
+        if sub['tipo'] != 'DATA':
+            continue
+        valor = (sub['original'] or '').strip()
+        iso = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', valor)
+        if iso:
+            try:
+                date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3)))
+            except ValueError:
+                return True
+            continue
+        if deslocar_data_livre(valor, 1) is None:
+            return True
+    return False
 
 
 def gerar_uma_versao(gold, rotulo, seed, modo, diretorio, problemas_globais):
@@ -139,6 +176,10 @@ def main():
                              'ficam como placeholder no corpus gerado.')
     parser.add_argument('--saida', default='outputs/surrogates',
                         help='Diretório onde gravar os corpora (default outputs/surrogates).')
+    parser.add_argument('--so-casadas', action='store_true',
+                        help='Usa apenas as sentencas que casaram com o corpus '
+                             'reprocessado, isto e, as que tem sentenca_idx e '
+                             'hash_paciente. As demais ficam de fora de todos os bracos.')
     parser.add_argument('--sem-contraprova', action='store_true',
                         help='Não gera os braços placeholder e celebridade.')
     parser.add_argument('--experimento', type=int, default=None,
@@ -159,6 +200,40 @@ def main():
         sys.exit('Nenhuma sentenca anotada foi encontrada. Nada a gerar.')
 
     os.makedirs(args.saida, exist_ok=True)
+
+    if args.so_casadas:
+        # Uma sentença sem casamento não tem mapa de PHI nem paciente. Nela as datas
+        # continuariam como marcador dentro do braço com surrogates, e o braço passaria
+        # a misturar dois tratamentos. Por decisão de desenho, essas sentenças saem dos
+        # três braços, para que todos sejam comparados sobre exatamente o mesmo conjunto.
+        total_antes = len(gold)
+        gold = [s for s in gold
+                if s['sentenca_idx'] is not None and s['hash_paciente']]
+        contagem['sentencas_descartadas_sem_casamento'] = total_antes - len(gold)
+        contagem['sentencas_usadas'] = len(gold)
+        print(f'  filtro --so-casadas: {len(gold)} sentencas usadas, '
+              f"{contagem['sentencas_descartadas_sem_casamento']} descartadas")
+
+        # Segunda peneira, pelo mesmo motivo da primeira: uma data que o gerador não
+        # sabe deslocar ficaria real no braço com surrogates. São poucas sentenças, e
+        # tirá-las de todos os braços custa menos do que deixar data real no corpus.
+        total_antes = len(gold)
+        gold = [s for s in gold if not tem_data_nao_deslocavel(s)]
+        contagem['sentencas_descartadas_data_nao_deslocavel'] = total_antes - len(gold)
+        contagem['sentencas_usadas'] = len(gold)
+        print(f'  datas nao deslocaveis: mais '
+              f"{contagem['sentencas_descartadas_data_nao_deslocavel']} sentencas "
+              f'descartadas, restam {len(gold)}')
+        if not gold:
+            sys.exit('Nenhuma sentenca casada. Rode conferir_reprocessamento.py '
+                     'com --aplicar antes.')
+
+        # A lista de identificadores é o que permite montar o braço real e o conjunto
+        # de teste com as mesmas sentenças. Só números, nenhum texto.
+        with open(os.path.join(args.saida, 'sentencas_usadas.json'), 'w',
+                  encoding='utf-8') as arquivo:
+            json.dump(sorted(s['sentenca_pk'] for s in gold), arquivo)
+
     problemas = []
     resumos = []
 
@@ -171,7 +246,8 @@ def main():
         resumos.append(resumo)
         print(f"  {rotulo}: {resumo['sentencas']} sentencas, "
               f"{resumo['entidades_distintas']} entidades, "
-              f"{resumo['placeholders_restantes']} placeholders restantes")
+              f"{resumo['placeholders_restantes']} placeholders restantes, "
+              f"{resumo['avisos'].get('datas_nao_deslocadas', 0)} datas nao deslocadas")
 
     if not args.sem_contraprova:
         print()

@@ -159,6 +159,143 @@ def _sem_acento(texto):
     return ''.join(c for c in nfkd if not unicodedata.combining(c))
 
 
+MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto',
+         'setembro', 'outubro', 'novembro', 'dezembro']
+
+_SEPARADOR_DATA = r'(\s*[/\\.\-]\s*)'
+
+
+def _mes_por_nome(texto):
+    """Devolve (numero_do_mes, abreviado) para um nome de mês, ou (None, False)."""
+    alvo = _sem_acento(texto).lower().rstrip('.')
+    for numero, nome in enumerate(MESES, 1):
+        sem_acento = _sem_acento(nome)
+        if alvo == sem_acento:
+            return numero, False
+        if len(alvo) == 3 and alvo == sem_acento[:3]:
+            return numero, True
+    return None, False
+
+
+def _numero_no_formato(valor, modelo):
+    """Escreve o número com zero à esquerda só se o original tinha dois dígitos."""
+    return f'{valor:02d}' if len(modelo) >= 2 else str(valor)
+
+
+def _ano_no_formato(ano, modelo):
+    """Escreve o ano com dois ou quatro dígitos, conforme o original."""
+    return f'{ano % 100:02d}' if len(modelo) == 2 else str(ano)
+
+
+def _ano_completo(texto):
+    """Ano de dois dígitos é lido como 20xx. O corpus é de registros recentes."""
+    ano = int(texto)
+    return 2000 + ano if len(texto) == 2 else ano
+
+
+def deslocar_data_livre(original, dias):
+    """
+    Desloca uma data escrita fora do padrão ISO e devolve no mesmo formato.
+
+    Atende aos formatos encontrados nas datas anotadas à mão no corpus:
+
+        dia / mês             '12 / 03'          a maioria absoluta dos casos
+        mês / ano             '03 / 2024', '03 / 24'
+        dia / mês / ano       '12 / 03 / 2024'
+        mês por extenso e ano 'março de 2024', 'mar / 2024', 'março 2024'
+        ano sozinho           '2019'
+
+    A data incompleta é completada só para fazer a conta, e o que foi completado não
+    aparece no resultado: quem não tinha ano continua sem ano. Sem dia, a conta parte do
+    dia 15; sem mês, de 1º de julho; sem ano, de um ano de referência.
+
+    O separador, os espaços e os zeros à esquerda do original são mantidos, para que o
+    surrogate tenha a mesma forma que o modelo vê no corpus real.
+
+    Devolve None quando não reconhece o formato. Não tenta adivinhar: uma expressão
+    como 'há três dias' é relativa, e deslocá-la seria inventar informação.
+    """
+    from datetime import date, timedelta
+
+    texto = (original or '').strip()
+    delta = timedelta(days=dias)
+
+    def montar(ano, mes, dia):
+        try:
+            return date(ano, mes, dia) + delta
+        except ValueError:
+            return None
+
+    # dia / mês / ano
+    m = re.fullmatch(r'(\d{1,2})' + _SEPARADOR_DATA + r'(\d{1,2})' + _SEPARADOR_DATA
+                     + r'(\d{4}|\d{2})', texto)
+    if m:
+        dia, sep1, mes, sep2, ano = m.groups()
+        nova = montar(_ano_completo(ano), int(mes), int(dia))
+        if nova is None:
+            return None
+        return (_numero_no_formato(nova.day, dia) + sep1
+                + _numero_no_formato(nova.month, mes) + sep2
+                + _ano_no_formato(nova.year, ano))
+
+    # mês / ano com quatro dígitos
+    m = re.fullmatch(r'(\d{1,2})' + _SEPARADOR_DATA + r'(\d{4})', texto)
+    if m:
+        mes, sep, ano = m.groups()
+        nova = montar(int(ano), int(mes), 15)
+        if nova is None:
+            return None
+        return _numero_no_formato(nova.month, mes) + sep + str(nova.year)
+
+    # dois números curtos: dia / mês, ou mês / ano de dois dígitos
+    m = re.fullmatch(r'(\d{1,2})' + _SEPARADOR_DATA + r'(\d{1,2})', texto)
+    if m:
+        primeiro, sep, segundo = m.groups()
+        a, b = int(primeiro), int(segundo)
+        if 1 <= b <= 12 and 1 <= a <= 31:
+            # Ano de referência bissexto, para que 29 / 02 seja uma data válida.
+            nova = montar(2024, b, a)
+            if nova is None:
+                return None
+            return (_numero_no_formato(nova.day, primeiro) + sep
+                    + _numero_no_formato(nova.month, segundo))
+        if 1 <= a <= 12 and b > 12 and len(segundo) == 2:
+            nova = montar(2000 + b, a, 15)
+            if nova is None:
+                return None
+            return (_numero_no_formato(nova.month, primeiro) + sep
+                    + f'{nova.year % 100:02d}')
+        return None
+
+    # mês por extenso seguido de ano
+    m = re.fullmatch(r'([^\W\d_]+\.?)(\s+de\s+|\s*/\s*|\s+)(\d{4}|\d{2})', texto,
+                     flags=re.IGNORECASE)
+    if m:
+        nome, sep, ano = m.groups()
+        mes, abreviado = _mes_por_nome(nome)
+        if mes is None:
+            return None
+        nova = montar(_ano_completo(ano), mes, 15)
+        if nova is None:
+            return None
+        novo_nome = MESES[nova.month - 1]
+        if abreviado:
+            novo_nome = novo_nome[:3] + ('.' if nome.endswith('.') else '')
+        if nome[:1].isupper() and not nome.isupper():
+            novo_nome = novo_nome.capitalize()       # 'Março' continua com inicial maiúscula
+        else:
+            novo_nome = espelhar_caixa(nome, novo_nome)
+        return novo_nome + sep + _ano_no_formato(nova.year, ano)
+
+    # ano sozinho
+    m = re.fullmatch(r'(19|20)\d{2}', texto)
+    if m:
+        nova = montar(int(texto), 7, 1)
+        return str(nova.year) if nova else None
+
+    return None
+
+
 def espelhar_caixa(original, surrogate):
     """
     Aplica ao surrogate a mesma caixa do original.
@@ -265,6 +402,7 @@ class GeradorSurrogates:
         self._shift_datas = {}    # chave -> deslocamento em dias
         self._nao_suportados = set()
         self._genero_indefinido = 0   # nomes em que o gênero não pôde ser inferido
+        self._datas_nao_deslocadas = 0  # datas em formato que o gerador não reconhece
         self._colisoes_evitadas = 0   # sorteios refeitos por sair igual ao original
         self._colisoes_nao_resolvidas = []  # casos em que nem assim deu para diferir
         self._sufixo_tentativa = ''   # varia o RNG entre as tentativas
@@ -505,7 +643,7 @@ class GeradorSurrogates:
 
     def deslocamento_dias(self, chave):
         """
-        Deslocamento fixo por paciente, entre -365 e +365 dias.
+        Deslocamento fixo por paciente, entre -365 e +365 dias, nunca zero.
 
         Sorteado uma vez e aplicado a TODAS as datas daquele paciente. É isso que
         preserva os intervalos: se o original tem alta 7 dias após a internação, o
@@ -514,29 +652,46 @@ class GeradorSurrogates:
         longitudinal que o hash do paciente existe para preservar.
         """
         if chave not in self._shift_datas:
-            self._shift_datas[chave] = self._rng('SHIFT', chave).randint(-365, 365)
+            # O zero fica de fora do sorteio. Com ele, cerca de um paciente em cada 731
+            # recebia deslocamento nulo e tinha todas as datas reais mantidas no corpus.
+            dias = self._rng('SHIFT', chave).randint(-365, 364)
+            self._shift_datas[chave] = dias + 1 if dias >= 0 else dias
         return self._shift_datas[chave]
 
     def data(self, original_iso, chave):
         """
-        Desloca uma data ISO (YYYY-MM-DD) pelo shift do paciente.
+        Desloca uma data pelo shift do paciente.
 
-        Devolve o original se não for uma data ISO válida, datas incompletas são
-        exceção documentada do pipeline e não devem ser inventadas.
+        O caso principal é a data ISO (YYYY-MM-DD), que é como a normalização entrega as
+        datas completas. As datas incompletas, que a expressão regular não captura e que
+        só aparecem porque foram anotadas à mão ('12 / 03', 'março de 2024', '2019'),
+        passam por `deslocar_data_livre`, que desloca o que dá para deslocar e devolve
+        no mesmo formato em que recebeu.
+
+        O que não é reconhecido volta como veio, e é contado em `datas_nao_deslocadas`.
+        Esse contador precisa ser conferido depois da geração: cada unidade dele é uma
+        data real que continuou no corpus.
         """
         from datetime import date, timedelta
 
         if self.modo == self.MODO_PLACEHOLDER:
             return self._proximo_placeholder('DATA', chave)
 
+        dias = self.deslocamento_dias(chave)
         m = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', (original_iso or '').strip())
-        if not m:
+        if m:
+            try:
+                base = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            except ValueError:
+                self._datas_nao_deslocadas += 1
+                return original_iso
+            return (base + timedelta(days=dias)).isoformat()
+
+        deslocada = deslocar_data_livre(original_iso, dias)
+        if deslocada is None:
+            self._datas_nao_deslocadas += 1
             return original_iso
-        try:
-            base = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        except ValueError:
-            return original_iso
-        return (base + timedelta(days=self.deslocamento_dias(chave))).isoformat()
+        return deslocada
 
     def hora(self, original, chave):
         """
@@ -696,6 +851,7 @@ class GeradorSurrogates:
             'entidades_distintas':  len(self._cache),
             'pacientes_com_shift':  len(self._shift_datas),
             'genero_indefinido':    self._genero_indefinido,
+            'datas_nao_deslocadas': self._datas_nao_deslocadas,
             'tipos_nao_suportados': self.tipos_nao_suportados(),
             'colisoes_evitadas':    self._colisoes_evitadas,
             'colisoes_nao_resolvidas': len(self._colisoes_nao_resolvidas),

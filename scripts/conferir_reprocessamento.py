@@ -80,9 +80,18 @@ def ler_corpus(caminho):
     """
     Lê o corpus.jsonl e devolve {doc_id: documento}.
 
-    Um registro por documento, com `sentencas_tokens` dentro. O arquivo do Exp 002 tem
-    12 MB, então cabe em memória sem cerimônia; se um dia não couber, a comparação
-    precisará ser feita em fluxo, documento a documento nos dois arquivos ao mesmo tempo.
+    O arquivo tem uma linha por sentença, e não por documento. Aqui as linhas são
+    agrupadas pelo `doc_id`, e cada documento passa a carregar `sentencas_tokens`, a
+    lista das suas sentenças na ordem em que aparecem no arquivo. Essa ordem coincide
+    com o `sentenca_idx` gravado pelo reprocessamento, que começa em zero a cada
+    documento.
+
+    A primeira versão deste leitor supunha uma linha por documento e guardava só a
+    última sentença de cada um. O resultado era um relatório com zero sentenças que
+    declarava os corpora idênticos. Por isso o script agora se recusa a continuar
+    quando não encontra nenhuma sentença.
+
+    O arquivo do Exp 002 tem 12 MB e cabe em memória sem cerimônia.
     """
     if not os.path.exists(caminho):
         sys.exit(f'Corpus nao encontrado: {caminho}')
@@ -97,7 +106,22 @@ def ler_corpus(caminho):
                 registro = json.loads(linha)
             except json.JSONDecodeError as erro:
                 sys.exit(f'{caminho}, linha {numero}: JSON invalido ({erro})')
-            documentos[registro['doc_id']] = registro
+            documento = documentos.setdefault(registro['doc_id'], {
+                'doc_id': registro['doc_id'],
+                'doc_type': registro.get('doc_type'),
+                'hash_paciente': registro.get('hash_paciente'),
+                'sentencas_tokens': [],
+            })
+            esperado = len(documento['sentencas_tokens'])
+            if registro.get('sentenca_idx') not in (None, esperado):
+                sys.exit(f'{caminho}, linha {numero}: sentenca_idx '
+                         f"{registro['sentenca_idx']} fora de ordem no doc "
+                         f"{registro['doc_id']} (esperado {esperado})")
+            documento['sentencas_tokens'].append(registro.get('tokens') or [])
+
+    total = sum(len(d['sentencas_tokens']) for d in documentos.values())
+    if total == 0:
+        sys.exit(f'{caminho}: nenhuma sentenca lida. O formato do arquivo mudou?')
     return documentos
 
 
@@ -209,9 +233,8 @@ def comparar_corpora(antigo, novo):
 
             if len(relatorio['exemplos']) < 10:
                 relatorio['exemplos'].append(
-                    f'doc {doc_id}, sentenca {indice}:\n'
-                    f'      antigo: {tokens_a[:12]}\n'
-                    f'      novo  : {tokens_b[:12]}'
+                    f'doc {doc_id}, sentenca {indice}: '
+                    f'{len(tokens_a)} tokens no antigo, {len(tokens_b)} no novo'
                 )
 
         if diferente:
@@ -316,11 +339,11 @@ def casar_sentencas_anotadas(sessao_id, antigo, novo, similaridade, limiar):
         elif len(posicoes) > 1:
             relatorio['casamento_ambiguo'] += 1
             anotar_falha(f"sentenca {sentenca['ordem']} (doc {doc_id}): aparece "
-                         f'{len(posicoes)} vezes no documento. "{trecho}"')
+                         f'{len(posicoes)} vezes no documento ({len(tokens)} tokens)')
         else:
             relatorio['sem_casamento'] += 1
             anotar_falha(f"sentenca {sentenca['ordem']} (doc {doc_id}): nao encontrada "
-                         f'no corpus novo. "{trecho}"')
+                         f'no corpus novo ({len(tokens)} tokens)')
 
     return casadas, relatorio
 
