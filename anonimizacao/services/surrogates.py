@@ -438,6 +438,35 @@ def inferir_genero(prenome):
     return None
 
 
+# Tratamentos que aparecem dentro da menção anotada como PESSOA ('SR JOAO', 'DRA ANA').
+# Não identificam ninguém e são a pista mais forte de que ali vem um nome.
+TITULOS_PESSOA = {
+    'sr', 'sra', 'srta', 'dr', 'dra', 'd', 'dona', 'seu', 'prof', 'profa', 'enf', 'enfa',
+    'tec', 'doutor', 'doutora', 'senhor', 'senhora',
+}
+
+
+def separar_titulo(original):
+    """
+    Separa o tratamento do começo da menção. Devolve (titulo, resto).
+
+    'SR . JOAO DA SILVA' vira ('SR .', 'JOAO DA SILVA'). O ponto solto logo depois do
+    tratamento acompanha o tratamento, porque a tokenização do corpus o separa.
+    """
+    partes = (original or '').split()
+    corte = 0
+    while corte < len(partes):
+        palavra = _sem_acento(partes[corte]).lower().rstrip('.')
+        eh_titulo = palavra in TITULOS_PESSOA and (corte == 0 or partes[corte - 1] == '.'
+                                                   or corte == 1 and False)
+        eh_ponto = partes[corte] == '.' and corte > 0
+        if corte == 0 and palavra in TITULOS_PESSOA or eh_ponto and corte == 1:
+            corte += 1
+        else:
+            break
+    return ' '.join(partes[:corte]), ' '.join(partes[corte:])
+
+
 def detectar_formato_nome(original):
     """
     Descreve a forma da menção para que o surrogate a reproduza.
@@ -498,6 +527,7 @@ class GeradorSurrogates:
         self._nao_suportados = set()
         self._genero_indefinido = 0   # nomes em que o gênero não pôde ser inferido
         self._datas_nao_deslocadas = 0  # datas em formato que o gerador não reconhece
+        self._palavras_usadas = {}      # por paciente: palavras de nome já sorteadas
         self._colisoes_evitadas = 0   # sorteios refeitos por sair igual ao original
         self._colisoes_nao_resolvidas = []  # casos em que nem assim deu para diferir
         self._sufixo_tentativa = ''   # varia o RNG entre as tentativas
@@ -593,6 +623,19 @@ class GeradorSurrogates:
         if self.modo == self.MODO_PLACEHOLDER:
             return self._proximo_placeholder('PESSOA', chave)
 
+        # O tratamento fica, e só o nome é trocado. No corpus, 14% das menções de pessoa
+        # começam com SR, SRA, DR ou DRA dentro do trecho anotado. Trocar o tratamento
+        # por um prenome, como acontecia, apagava do corpus com surrogates todas as
+        # menções nesse formato, e o modelo deixava de aprendê-lo.
+        titulo, resto = separar_titulo(original)
+        if titulo:
+            if not resto:
+                return original      # só o tratamento: não há nome para trocar
+            return f'{titulo} {self.nome_pessoa(resto, chave)}'
+
+        if self.modo == self.MODO_VEROSSIMIL:
+            return self._nome_palavra_por_palavra(original, chave)
+
         def gerar():
             rng = self._rng('PESSOA', chave)
             if self.modo == self.MODO_CELEBRIDADE:
@@ -659,6 +702,92 @@ class GeradorSurrogates:
         # O original vai junto apenas para a checagem de colisão. A chave de cache
         # continua sendo só a identidade, porque PESSOA está em _CHAVE_SO_IDENTIDADE.
         return self._memoizar('PESSOA', chave, gerar, original)
+
+    _PARTICULAS_NOME = ('de', 'da', 'do', 'dos', 'das', 'e')
+
+    def _nome_palavra_por_palavra(self, original, chave):
+        """
+        Troca o nome palavra por palavra, com um dicionário próprio de cada paciente.
+
+        Dentro dos registros de um paciente, cada palavra de nome real tem sempre a mesma
+        palavra fictícia. Disso saem as duas propriedades que o orientador pediu:
+
+          - a mesma pessoa recebe o mesmo surrogate, em qualquer forma de escrita.
+            'JOAO DA SILVA', 'JOAO' e 'J. SILVA' viram 'CARLOS DA ROCHA', 'CARLOS' e
+            'C. ROCHA';
+          - pessoas diferentes recebem surrogates diferentes, inclusive dentro do mesmo
+            paciente. O médico, o paciente e o acompanhante não viram a mesma pessoa.
+
+        A versão anterior guardava um único nome por paciente. Com isso, todas as
+        pessoas citadas nos registros de um paciente recebiam o mesmo nome, e uma menção
+        curta saía com o tamanho da primeira menção vista. Quase metade das menções do
+        corpus estava nessa situação.
+
+        O dicionário é por paciente, então o mesmo nome real em outro paciente recebe
+        outra palavra: homônimos continuam distintos.
+
+        Partículas, pontuação e iniciais mantêm o lugar. A primeira palavra vira prenome,
+        do mesmo gênero quando dá para inferir, e as demais viram sobrenomes.
+        """
+        usadas = self._palavras_usadas.setdefault(chave, set())
+        novas = []
+        ja_tem_nome = False
+        particula = None
+
+        for palavra in (original or '').split():
+            base = _sem_acento(palavra).upper().strip('.,;:()-')
+            if not base or not any(c.isalpha() for c in base):
+                novas.append(palavra)                      # pontuação ou número
+                continue
+            if base.lower() in self._PARTICULAS_NOME:
+                novas.append(palavra)
+                particula = base.lower()
+                continue
+
+            cache_key = ('PESSOA', chave, base)
+            if cache_key not in self._cache:
+                rng = self._rng('PESSOA', chave, base)
+                if len(base) == 1:
+                    # Inicial: usa a de uma palavra já trocada que comece com ela, para
+                    # 'J. SILVA' acompanhar 'JOAO DA SILVA'. Sem isso, sorteia.
+                    conhecidas = [v for (t, c, o), v in self._cache.items()
+                                  if t == 'PESSOA' and c == chave and len(o) > 1
+                                  and o.startswith(base)]
+                    escolhida = (conhecidas[0][0] if conhecidas
+                                 else rng.choice('ABCDEFGJLMNPRSTV'))
+                else:
+                    if not ja_tem_nome:
+                        genero = inferir_genero(palavra)
+                        if genero is None:
+                            self._genero_indefinido += 1
+                            genero = 'M' if rng.random() < 0.5 else 'F'
+                        catalogo = self.prenomes_f if genero == 'F' else self.prenomes_m
+                    else:
+                        catalogo = self.sobrenomes
+                    livres = [n for n in catalogo
+                              if _sem_acento(n).upper() != base
+                              and _sem_acento(n).upper() not in usadas]
+                    # Depois de partícula, prefere sobrenome que combine com ela, para
+                    # não sair 'da Nascimento'.
+                    combinam = [n for n in livres
+                                if PARTICULA_POR_SOBRENOME.get(n) == particula]
+                    if particula and combinam:
+                        livres = combinam
+                    escolhida = rng.choice(livres or list(catalogo))
+                    usadas.add(_sem_acento(escolhida).upper())
+                self._cache[cache_key] = escolhida
+
+            escolhida = self._cache[cache_key]
+            if palavra.isupper():
+                escolhida = escolhida.upper()
+            elif palavra.islower():
+                escolhida = escolhida.lower()
+            sufixo = palavra[len(palavra.rstrip('.,;:')):]   # ponto colado na palavra
+            novas.append(escolhida + sufixo)
+            ja_tem_nome = True
+            particula = None
+
+        return ' '.join(novas)
 
     # -- ENDEREÇO -----------------------------------------------------------
 
