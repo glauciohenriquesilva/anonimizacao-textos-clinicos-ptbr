@@ -152,11 +152,13 @@ def resumir_benchmark(resultados, versoes, n_particoes, delta):
             valor = resultados['particoes'][s][campo][braco]
             return valor['micro'][chave] if chave else valor
 
+        nome = chave or 'f1'          # prefixo dos campos: f1_real, cobertura_real...
         f1_a = [ler(s, 'real') for s in sementes]
         f1_b = [media([ler(s, v) for v in versoes]) for s in sementes]
         saida = {
-            'f1_real': {'media': round(media(f1_a), 4), 'desvio': round(desvio(f1_a), 4)},
-            'f1_surrogates': {
+            f'{nome}_real': {'media': round(media(f1_a), 4),
+                             'desvio': round(desvio(f1_a), 4)},
+            f'{nome}_surrogates': {
                 'media': round(media(f1_b), 4), 'desvio': round(desvio(f1_b), 4),
                 'desvio_medio_entre_versoes': round(media([
                     desvio([ler(s, v) for v in versoes]) for s in sementes]), 4),
@@ -166,7 +168,7 @@ def resumir_benchmark(resultados, versoes, n_particoes, delta):
         }
         for braco in ('placeholder', 'celebridade'):
             f1_c = [ler(s, braco) for s in sementes]
-            saida[f'f1_{braco}'] = {'media': round(media(f1_c), 4),
+            saida[f'{nome}_{braco}'] = {'media': round(media(f1_c), 4),
                                     'desvio': round(desvio(f1_c), 4)}
             saida[f'{braco}_menos_A'] = resumir_diferencas(
                 [c - a for a, c in zip(f1_a, f1_c)], tamanhos[0], tamanhos[1], delta)
@@ -181,3 +183,20 @@ def resumir_benchmark(resultados, versoes, n_particoes, delta):
         resumo['cobertura_no_texto_real'] = bloco('metricas', 'cobertura')
         resumo['cobertura_no_proprio_corpus'] = bloco('metricas_proprio', 'cobertura')
     return resumo
+
+
+if __name__ == '__main__':
+    # Recalcula o resumo de um arquivo de resultados já existente, sem treinar nada.
+    #   python scripts/comum_benchmark.py <arquivo.json> [--delta 0.02]
+    import sys
+    caminho = sys.argv[1]
+    delta = float(sys.argv[sys.argv.index('--delta') + 1]) if '--delta' in sys.argv else None
+    with open(caminho, encoding='utf-8') as arquivo:
+        resultados = json.load(arquivo)
+    primeira = resultados['particoes'][min(resultados['particoes'], key=int)]
+    versoes = sorted(b for b in primeira['f1'] if b.startswith('v'))
+    resultados['resumo'] = resumir_benchmark(
+        resultados, versoes, len(resultados['particoes']), delta)
+    with open(caminho, 'w', encoding='utf-8') as arquivo:
+        json.dump(resultados, arquivo, ensure_ascii=False, indent=2)
+    print(json.dumps(resultados['resumo'], ensure_ascii=False, indent=2))
