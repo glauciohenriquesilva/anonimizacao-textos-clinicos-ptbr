@@ -128,6 +128,18 @@ def aplicar_em_sentenca(tokens, labels, phi, gerador, chave, avisos):
     labels_novas = list(labels)
 
     for sub in _coletar_substituicoes(tokens, labels, phi, avisos):
+        if gerador.modo == gerador.MODO_PLACEHOLDER and sub['origem'] == 'mapa_phi':
+            # No braço de marcadores, o PHI que a regex já tirou do texto recebe um
+            # marcador fixo por tipo, e só as entidades anotadas viram TIPO_1, TIPO_2.
+            # Antes as duas origens viravam o mesmo DATA_n, uma com label O e outra
+            # com label DATA, e nenhum modelo consegue separar formas idênticas com
+            # rótulos opostos. No texto real isso não acontece: a data da regex tem
+            # formato ISO e a anotada, formato livre. Uma base publicada com marcadores
+            # também teria as duas formas distintas.
+            tokens_novos[sub['inicio']:sub['fim']] = _tokenizar_surrogate(f"[{sub['tipo']}]")
+            labels_novas[sub['inicio']:sub['fim']] = ['O'] * len(
+                _tokenizar_surrogate(f"[{sub['tipo']}]"))
+            continue
         surrogate = gerador.gerar(sub['tipo'], sub['original'], chave)
 
         # Um tipo que o gerador não sabe tratar devolve o valor original. Deixar passar
