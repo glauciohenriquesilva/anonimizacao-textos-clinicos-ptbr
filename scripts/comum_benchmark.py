@@ -111,6 +111,29 @@ def resumir_diferencas(diferencas, n_treino, n_teste, delta):
     return saida
 
 
+def metricas_seqeval(y_real, y_previsto):
+    """
+    Devolve (f1, f1_por_entidade, metricas) no padrão do seqeval, por entidade.
+
+    Além do F1, guarda precisão e cobertura (recall). Para anonimização, a cobertura é a
+    métrica que mais importa: cada entidade que o modelo deixa de encontrar é um
+    identificador real que fica no texto. É a dimensão L, de privacidade.
+    """
+    from seqeval.metrics import classification_report, f1_score
+
+    relatorio = classification_report(y_real, y_previsto, output_dict=True, zero_division=0)
+    por_entidade, metricas = {}, {'por_entidade': {}}
+    for nome, v in relatorio.items():
+        bloco = {'precisao': round(v['precision'], 4), 'cobertura': round(v['recall'], 4),
+                 'f1': round(v['f1-score'], 4), 'suporte': int(v['support'])}
+        if nome == 'micro avg':
+            metricas['micro'] = bloco
+        elif nome not in ('macro avg', 'weighted avg'):
+            metricas['por_entidade'][nome] = bloco
+            por_entidade[nome] = bloco['f1']
+    return round(f1_score(y_real, y_previsto), 4), por_entidade, metricas
+
+
 def resumir_benchmark(resultados, versoes, n_particoes, delta):
     """
     Monta o resumo das duas avaliações (no texto real e no próprio corpus).
@@ -122,29 +145,39 @@ def resumir_benchmark(resultados, versoes, n_particoes, delta):
     tamanhos = (resultados['particoes'][sementes[0]]['sentencas']['treino'],
                 resultados['particoes'][sementes[0]]['sentencas']['teste'])
 
-    def bloco(campo):
-        f1_a = [resultados['particoes'][s][campo]['real'] for s in sementes]
-        f1_b = [media([resultados['particoes'][s][campo][v] for v in versoes])
-                for s in sementes]
+    def bloco(campo, chave=None):
+        # Sem chave, lê o F1 guardado em `campo`. Com chave, lê a métrica micro de mesmo
+        # nome dentro de `campo` (usado para a cobertura).
+        def ler(s, braco):
+            valor = resultados['particoes'][s][campo][braco]
+            return valor['micro'][chave] if chave else valor
+
+        f1_a = [ler(s, 'real') for s in sementes]
+        f1_b = [media([ler(s, v) for v in versoes]) for s in sementes]
         saida = {
             'f1_real': {'media': round(media(f1_a), 4), 'desvio': round(desvio(f1_a), 4)},
             'f1_surrogates': {
                 'media': round(media(f1_b), 4), 'desvio': round(desvio(f1_b), 4),
                 'desvio_medio_entre_versoes': round(media([
-                    desvio([resultados['particoes'][s][campo][v] for v in versoes])
-                    for s in sementes]), 4),
+                    desvio([ler(s, v) for v in versoes]) for s in sementes]), 4),
             },
             'B_menos_A': resumir_diferencas(
                 [b - a for a, b in zip(f1_a, f1_b)], tamanhos[0], tamanhos[1], delta),
         }
         for braco in ('placeholder', 'celebridade'):
-            f1_c = [resultados['particoes'][s][campo][braco] for s in sementes]
+            f1_c = [ler(s, braco) for s in sementes]
             saida[f'f1_{braco}'] = {'media': round(media(f1_c), 4),
                                     'desvio': round(desvio(f1_c), 4)}
             saida[f'{braco}_menos_A'] = resumir_diferencas(
                 [c - a for a, c in zip(f1_a, f1_c)], tamanhos[0], tamanhos[1], delta)
         return saida
 
-    return {'delta': delta,
-            'avaliacao_no_texto_real': bloco('f1'),
-            'avaliacao_no_proprio_corpus': bloco('f1_proprio')}
+    resumo = {'delta': delta,
+              'avaliacao_no_texto_real': bloco('f1'),
+              'avaliacao_no_proprio_corpus': bloco('f1_proprio')}
+    # A cobertura só existe nas rodadas que guardaram as métricas completas.
+    primeira = resultados['particoes'][sementes[0]]
+    if primeira.get('metricas'):
+        resumo['cobertura_no_texto_real'] = bloco('metricas', 'cobertura')
+        resumo['cobertura_no_proprio_corpus'] = bloco('metricas_proprio', 'cobertura')
+    return resumo

@@ -50,11 +50,10 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from comum_benchmark import (  # noqa: E402
-    contar_entidades, dividir_por_paciente, ler_corpus, resumir_benchmark,
+    contar_entidades, dividir_por_paciente, ler_corpus, metricas_seqeval, resumir_benchmark,
 )
 
 import torch  # noqa: E402
-from seqeval.metrics import classification_report, f1_score  # noqa: E402
 from transformers import (  # noqa: E402
     AutoModelForTokenClassification,
     AutoTokenizer,
@@ -128,10 +127,8 @@ def prever(modelo, tokenizer, tokens, lote=32):
 
 
 def avaliar(y_real, y_previsto):
-    relatorio = classification_report(y_real, y_previsto, output_dict=True, zero_division=0)
-    por_entidade = {n: round(v['f1-score'], 4) for n, v in relatorio.items()
-                    if n not in ('micro avg', 'macro avg', 'weighted avg')}
-    return round(f1_score(y_real, y_previsto), 4), por_entidade
+    """Devolve (F1 micro, F1 por entidade, métricas completas com precisão e cobertura)."""
+    return metricas_seqeval(y_real, y_previsto)
 
 
 def treinar(args, semente, tok_treino, lab_treino, tok_val, lab_val, tokenizer):
@@ -211,7 +208,7 @@ def main():
         treino, validacao, teste = dividir_por_paciente(grupos, semente)
         part = resultados['particoes'].setdefault(str(semente), {
             'f1': {}, 'por_entidade': {}, 'f1_proprio': {}, 'por_entidade_proprio': {},
-            'sentencas_cortadas': {}})
+            'metricas': {}, 'metricas_proprio': {}, 'sentencas_cortadas': {}})
         part['sentencas'] = {'treino': len(treino), 'validacao': len(validacao),
                              'teste': len(teste)}
         part['entidades_teste'] = contar_entidades(lab_real, teste)
@@ -229,10 +226,10 @@ def main():
                              [tok[i] for i in validacao], [lab[i] for i in validacao], tokenizer)
             prev_real, cort_real = prever(modelo, tokenizer, [tok_real[i] for i in teste])
             prev_prop, cort_prop = prever(modelo, tokenizer, [tok[i] for i in teste])
-            part['f1'][braco], part['por_entidade'][braco] = avaliar(
-                [lab_real[i] for i in teste], prev_real)
-            part['f1_proprio'][braco], part['por_entidade_proprio'][braco] = avaliar(
-                [lab[i] for i in teste], prev_prop)
+            (part['f1'][braco], part['por_entidade'][braco],
+             part['metricas'][braco]) = avaliar([lab_real[i] for i in teste], prev_real)
+            (part['f1_proprio'][braco], part['por_entidade_proprio'][braco],
+             part['metricas_proprio'][braco]) = avaliar([lab[i] for i in teste], prev_prop)
             part['sentencas_cortadas'][braco] = cort_real + cort_prop
             del modelo
             if torch.cuda.is_available():

@@ -76,7 +76,7 @@ from preprocessamento.services.preprocessamento import extrair_features_sentenca
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from comum_benchmark import (  # noqa: E402
-    contar_entidades, desvio, dividir_por_paciente, ler_corpus, media, resumir_diferencas,
+    contar_entidades, dividir_por_paciente, ler_corpus, metricas_seqeval, resumir_benchmark,
 )
 
 def treinar(tokens_treino, labels_treino):
@@ -90,15 +90,8 @@ def treinar(tokens_treino, labels_treino):
 
 
 def avaliar(crf, x_teste, y_teste):
-    """Devolve (F1 micro, F1 por entidade) do modelo nas sentenças de teste dadas."""
-    previsto = crf.predict(x_teste)
-    relatorio = classification_report(y_teste, previsto, output_dict=True, zero_division=0)
-    por_entidade = {
-        nome: round(valores['f1-score'], 4)
-        for nome, valores in relatorio.items()
-        if nome not in ('micro avg', 'macro avg', 'weighted avg')
-    }
-    return round(f1_score(y_teste, previsto), 4), por_entidade
+    """Devolve (F1 micro, F1 por entidade, métricas completas) nas sentenças dadas."""
+    return metricas_seqeval(y_teste, crf.predict(x_teste))
 
 
 def main():
@@ -146,14 +139,13 @@ def main():
         print(f'  retomando de {caminho_saida}')
 
     tokens_reais, labels_reais = corpora['real']
-    tamanhos = None
 
     for semente in range(1, args.particoes + 1):
         chave = str(semente)
         treino, validacao, teste = dividir_por_paciente(grupos, semente)
-        tamanhos = (len(treino), len(teste))
         particao = resultados['particoes'].setdefault(
-            chave, {'f1': {}, 'por_entidade': {}, 'f1_proprio': {}, 'por_entidade_proprio': {}})
+            chave, {'f1': {}, 'por_entidade': {}, 'f1_proprio': {}, 'por_entidade_proprio': {},
+                    'metricas': {}, 'metricas_proprio': {}})
         particao['sentencas'] = {'treino': len(treino), 'validacao': len(validacao),
                                  'teste': len(teste)}
         particao['entidades_teste'] = contar_entidades(labels_reais, teste)
@@ -174,62 +166,23 @@ def main():
             inicio = time.time()
             tokens, labels = corpora[braco]
             crf = treinar([tokens[i] for i in treino], [labels[i] for i in treino])
-            f1, por_entidade = avaliar(crf, x_teste, y_teste)
-            f1_p, por_entidade_p = avaliar(
+            f1, por_entidade, metricas = avaliar(crf, x_teste, y_teste)
+            f1_p, por_entidade_p, metricas_p = avaliar(
                 crf, [extrair_features_sentenca(tokens[i]) for i in teste],
                 [labels[i] for i in teste])
             particao['f1'][braco] = f1
             particao['por_entidade'][braco] = por_entidade
             particao['f1_proprio'][braco] = f1_p
             particao['por_entidade_proprio'][braco] = por_entidade_p
+            particao.setdefault('metricas', {})[braco] = metricas
+            particao.setdefault('metricas_proprio', {})[braco] = metricas_p
             print(f'  {braco:<12} F1 no real {f1:.4f} | no proprio {f1_p:.4f}  '
                   f'({time.time() - inicio:.0f}s)')
             with open(caminho_saida, 'w', encoding='utf-8') as arquivo:
                 json.dump(resultados, arquivo, ensure_ascii=False, indent=2)
 
     # ---- Resumo ----------------------------------------------------------------
-    sementes = [str(s) for s in range(1, args.particoes + 1)]
-    f1_a = [resultados['particoes'][s]['f1']['real'] for s in sementes]
-    f1_b = [media([resultados['particoes'][s]['f1'][v] for v in versoes]) for s in sementes]
-    desvio_versoes = [desvio([resultados['particoes'][s]['f1'][v] for v in versoes])
-                      for s in sementes]
-
-    resumo = {
-        'delta': args.delta,
-        'f1_real':       {'media': round(media(f1_a), 4), 'desvio': round(desvio(f1_a), 4)},
-        'f1_surrogates': {'media': round(media(f1_b), 4), 'desvio': round(desvio(f1_b), 4),
-                          'desvio_medio_entre_versoes': round(media(desvio_versoes), 4)},
-        'B_menos_A': resumir_diferencas(
-            [b - a for a, b in zip(f1_a, f1_b)], tamanhos[0], tamanhos[1], args.delta),
-    }
-    for braco in ('placeholder', 'celebridade'):
-        f1_c = [resultados['particoes'][s]['f1'][braco] for s in sementes]
-        resumo[f'f1_{braco}'] = {'media': round(media(f1_c), 4),
-                                 'desvio': round(desvio(f1_c), 4)}
-        resumo[f'{braco}_menos_A'] = resumir_diferencas(
-            [c - a for a, c in zip(f1_a, f1_c)], tamanhos[0], tamanhos[1], args.delta)
-
-    # Avaliação no próprio corpus: a hipótese do orientador.
-    proprio = {}
-    f1_a_proprio = [resultados['particoes'][s]['f1_proprio']['real'] for s in sementes]
-    f1_b_proprio = [media([resultados['particoes'][s]['f1_proprio'][v] for v in versoes])
-                    for s in sementes]
-    proprio['f1_real'] = {'media': round(media(f1_a_proprio), 4),
-                          'desvio': round(desvio(f1_a_proprio), 4)}
-    proprio['f1_surrogates'] = {'media': round(media(f1_b_proprio), 4),
-                                'desvio': round(desvio(f1_b_proprio), 4)}
-    proprio['B_menos_A'] = resumir_diferencas(
-        [b - a for a, b in zip(f1_a_proprio, f1_b_proprio)], tamanhos[0], tamanhos[1],
-        args.delta)
-    for braco in ('placeholder', 'celebridade'):
-        f1_c = [resultados['particoes'][s]['f1_proprio'][braco] for s in sementes]
-        proprio[f'f1_{braco}'] = {'media': round(media(f1_c), 4),
-                                  'desvio': round(desvio(f1_c), 4)}
-        proprio[f'{braco}_menos_A'] = resumir_diferencas(
-            [c - a for a, c in zip(f1_a_proprio, f1_c)], tamanhos[0], tamanhos[1],
-            args.delta)
-    resumo['avaliacao_no_proprio_corpus'] = proprio
-
+    resumo = resumir_benchmark(resultados, versoes, args.particoes, args.delta)
     resultados['resumo'] = resumo
     with open(caminho_saida, 'w', encoding='utf-8') as arquivo:
         json.dump(resultados, arquivo, ensure_ascii=False, indent=2)
