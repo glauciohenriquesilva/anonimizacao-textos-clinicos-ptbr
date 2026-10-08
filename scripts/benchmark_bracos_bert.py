@@ -24,12 +24,19 @@ escolhido pela perda na partição de validação do próprio braço.
 Diferente do CRF, o BERT tem sorteios internos. A semente do treino é a da partição, então
 cada combinação é reproduzível, e a variação entre partições já inclui esse ruído.
 
-MODELOS DO EXP 002 (conferir o identificador exato antes de rodar):
-    pucpr/biobertpt-clin
-    pierreguillou/bert-base-cased-pt-lenerbr
-    pierreguillou/bert-large-cased-pt-lenerbr
-    jhu-clsp/mmBERT-base
-    answerdotai/ModernBERT-base
+MODELOS E HIPERPARÂMETROS DO EXP 002 (notebooks/04_bert_finetuning.ipynb, conferido em
+08/10/2026). Cada modelo tem os seus, e é preciso passá-los na linha de comando:
+
+    pucpr/biobertpt-clin                            --lote 16 --epocas 5 --lr 2e-5
+    pierreguillou/bert-base-cased-pt-lenerbr        --lote 16 --epocas 5 --lr 2e-5
+    pierreguillou/ner-bert-large-cased-pt-lenerbr   --lote 8  --epocas 5 --lr 1e-5
+    jhu-clsp/mmBERT-base                            --lote 32 --epocas 8 --lr 1e-5
+    answerdotai/ModernBERT-base                     --lote 32 --epocas 8 --lr 1e-5
+
+Em todos, acumulação de gradiente 4 (padrão do script). No Exp 002 o ModernBERT usava
+flash attention, que exige GPU Ampere ou mais nova. A Titan V do IFES é anterior: ele roda
+sem, mais devagar. Se faltar memória, reduza --lote e aumente --acumulacao na mesma
+proporção, para manter o lote efetivo, e anote a mudança no handoff.
 
 Uso, teste rápido com o corpus fictício:
     python scripts/benchmark_bracos_bert.py --dir outputs/corpus_ficticio \\
