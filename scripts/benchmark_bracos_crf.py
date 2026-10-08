@@ -74,56 +74,10 @@ from seqeval.metrics import classification_report, f1_score  # noqa: E402
 
 from preprocessamento.services.preprocessamento import extrair_features_sentenca  # noqa: E402
 
-FRACAO_TESTE = 0.15
-FRACAO_VALIDACAO = 0.15
-
-
-def ler_corpus(caminho):
-    """Devolve (lista de tokens, lista de labels), uma entrada por sentença."""
-    tokens, labels = [], []
-    with open(caminho, encoding='utf-8') as arquivo:
-        for linha in arquivo:
-            registro = json.loads(linha)
-            tokens.append(registro['tokens'])
-            labels.append(registro['labels'])
-    return tokens, labels
-
-
-def dividir_por_paciente(grupos, semente):
-    """
-    Sorteia pacientes inteiros para teste e validação até atingir 15% das sentenças em
-    cada um. O resto é treino. Devolve três listas de índices de sentença.
-
-    Nenhum paciente fica em duas partições. É essa a garantia contra vazamento.
-    """
-    por_paciente = {}
-    for indice, paciente in enumerate(grupos):
-        por_paciente.setdefault(paciente, []).append(indice)
-
-    pacientes = sorted(por_paciente)
-    random.Random(semente).shuffle(pacientes)
-
-    total = len(grupos)
-    teste, validacao, treino = [], [], []
-    for paciente in pacientes:
-        if len(teste) < FRACAO_TESTE * total:
-            teste.extend(por_paciente[paciente])
-        elif len(validacao) < FRACAO_VALIDACAO * total:
-            validacao.extend(por_paciente[paciente])
-        else:
-            treino.extend(por_paciente[paciente])
-    return sorted(treino), sorted(validacao), sorted(teste)
-
-
-def contar_entidades(labels, indices):
-    """Conta as entidades (labels B-) por tipo nas sentenças indicadas."""
-    contagem = {}
-    for indice in indices:
-        for label in labels[indice]:
-            if label.startswith('B-'):
-                contagem[label[2:]] = contagem.get(label[2:], 0) + 1
-    return contagem
-
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from comum_benchmark import (  # noqa: E402
+    contar_entidades, desvio, dividir_por_paciente, ler_corpus, media, resumir_diferencas,
+)
 
 def treinar(tokens_treino, labels_treino):
     """Treina um CRF com os hiperparâmetros do Exp 002."""
@@ -145,52 +99,6 @@ def avaliar(crf, x_teste, y_teste):
         if nome not in ('micro avg', 'macro avg', 'weighted avg')
     }
     return round(f1_score(y_teste, previsto), 4), por_entidade
-
-
-def media(valores):
-    return sum(valores) / len(valores)
-
-
-def desvio(valores):
-    if len(valores) < 2:
-        return 0.0
-    m = media(valores)
-    return math.sqrt(sum((v - m) ** 2 for v in valores) / (len(valores) - 1))
-
-
-def resumir_diferencas(diferencas, n_treino, n_teste, delta):
-    """
-    Média, intervalo de 90% e, havendo margem, o TOST sobre as diferenças por partição.
-
-    Sai em duas versões: a ingênua, que trata as partições como independentes, e a
-    corrigida de Nadeau e Bengio, que infla a variância pelo tanto de sentenças que as
-    partições compartilham. A corrigida é a que deve ser citada.
-    """
-    from scipy import stats
-
-    k = len(diferencas)
-    m, s = media(diferencas), desvio(diferencas)
-    saida = {'k': k, 'media': round(m, 4), 'desvio': round(s, 4)}
-    if k < 2 or s == 0:
-        saida['observacao'] = 'sem variacao ou menos de duas particoes: nao ha intervalo'
-        return saida
-
-    erros = {
-        'ingenuo':   s * math.sqrt(1 / k),
-        'corrigido': s * math.sqrt(1 / k + n_teste / n_treino),
-    }
-    critico = stats.t.ppf(0.95, k - 1)
-    for nome, erro in erros.items():
-        bloco = {
-            'ic90': [round(m - critico * erro, 4), round(m + critico * erro, 4)],
-        }
-        if delta is not None:
-            p_inferior = 1 - stats.t.cdf((m + delta) / erro, k - 1)   # H0: dF1 <= -delta
-            p_superior = stats.t.cdf((m - delta) / erro, k - 1)       # H0: dF1 >= +delta
-            bloco['tost_p'] = round(max(p_inferior, p_superior), 4)
-            bloco['equivalente'] = bool(bloco['tost_p'] < 0.05)
-        saida[nome] = bloco
-    return saida
 
 
 def main():
