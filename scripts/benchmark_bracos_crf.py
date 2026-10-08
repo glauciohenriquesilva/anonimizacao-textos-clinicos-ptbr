@@ -24,11 +24,18 @@ treino e no teste. O modelo acertaria por ter decorado, não por ter aprendido.
 A divisão é repetida K vezes, cada uma com sua semente. O CRF é determinístico, então é
 a repetição da divisão que mostra quanto o resultado oscila, inclusive no braço A.
 
-O TESTE É SEMPRE REAL
+DUAS AVALIAÇÕES PARA CADA TREINO
 
-Qualquer que seja o braço do treino, o modelo é avaliado nas sentenças reais da partição
-de teste. É o uso que interessa: treinar no corpus liberável e aplicar em prontuário de
-verdade.
+Cada modelo treinado é avaliado duas vezes, nas mesmas sentenças de teste:
+
+  no texto real      responde se o corpus liberável serve para treinar um modelo que
+                     vai rodar em prontuário de verdade (a QP2 dos slides);
+  no próprio corpus  responde se um resultado medido no corpus liberável se parece com
+                     o que se mediria no real. É a hipótese do orientador (reunião de
+                     06/10/2026): a base com marcadores dá resultado otimista demais, e a
+                     base verossímil fica perto do real.
+
+No braço A as duas avaliações coincidem.
 
 ESTATÍSTICA
 
@@ -44,7 +51,8 @@ também o intervalo com a correção de Nadeau e Bengio (2003), que é o número
 Somente leitura dos corpora. Imprime e grava apenas números.
 
 Uso:
-    python scripts/benchmark_bracos_crf.py --dir outputs/surrogates_exp004 --particoes 5
+    python scripts/benchmark_bracos_crf.py --dir outputs/surrogates_exp004_r3 --particoes 5 \
+        --saida outputs/surrogates_exp004_r3/benchmark_crf_duplo.json
 """
 
 import argparse
@@ -117,13 +125,18 @@ def contar_entidades(labels, indices):
     return contagem
 
 
-def treinar_e_avaliar(tokens_treino, labels_treino, x_teste, y_teste):
-    """Treina um CRF com os hiperparâmetros do Exp 002 e mede o F1 no teste real."""
+def treinar(tokens_treino, labels_treino):
+    """Treina um CRF com os hiperparâmetros do Exp 002."""
     crf = sklearn_crfsuite.CRF(
         algorithm='lbfgs', c1=0.1, c2=0.1, max_iterations=300,
         all_possible_transitions=True,
     )
     crf.fit([extrair_features_sentenca(t) for t in tokens_treino], labels_treino)
+    return crf
+
+
+def avaliar(crf, x_teste, y_teste):
+    """Devolve (F1 micro, F1 por entidade) do modelo nas sentenças de teste dadas."""
     previsto = crf.predict(x_teste)
     relatorio = classification_report(y_teste, previsto, output_dict=True, zero_division=0)
     por_entidade = {
@@ -231,7 +244,8 @@ def main():
         chave = str(semente)
         treino, validacao, teste = dividir_por_paciente(grupos, semente)
         tamanhos = (len(treino), len(teste))
-        particao = resultados['particoes'].setdefault(chave, {'f1': {}, 'por_entidade': {}})
+        particao = resultados['particoes'].setdefault(
+            chave, {'f1': {}, 'por_entidade': {}, 'f1_proprio': {}, 'por_entidade_proprio': {}})
         particao['sentencas'] = {'treino': len(treino), 'validacao': len(validacao),
                                  'teste': len(teste)}
         particao['entidades_teste'] = contar_entidades(labels_reais, teste)
@@ -251,11 +265,17 @@ def main():
                 continue
             inicio = time.time()
             tokens, labels = corpora[braco]
-            f1, por_entidade = treinar_e_avaliar(
-                [tokens[i] for i in treino], [labels[i] for i in treino], x_teste, y_teste)
+            crf = treinar([tokens[i] for i in treino], [labels[i] for i in treino])
+            f1, por_entidade = avaliar(crf, x_teste, y_teste)
+            f1_p, por_entidade_p = avaliar(
+                crf, [extrair_features_sentenca(tokens[i]) for i in teste],
+                [labels[i] for i in teste])
             particao['f1'][braco] = f1
             particao['por_entidade'][braco] = por_entidade
-            print(f'  {braco:<12} F1 {f1:.4f}  ({time.time() - inicio:.0f}s)')
+            particao['f1_proprio'][braco] = f1_p
+            particao['por_entidade_proprio'][braco] = por_entidade_p
+            print(f'  {braco:<12} F1 no real {f1:.4f} | no proprio {f1_p:.4f}  '
+                  f'({time.time() - inicio:.0f}s)')
             with open(caminho_saida, 'w', encoding='utf-8') as arquivo:
                 json.dump(resultados, arquivo, ensure_ascii=False, indent=2)
 
@@ -280,6 +300,27 @@ def main():
                                  'desvio': round(desvio(f1_c), 4)}
         resumo[f'{braco}_menos_A'] = resumir_diferencas(
             [c - a for a, c in zip(f1_a, f1_c)], tamanhos[0], tamanhos[1], args.delta)
+
+    # Avaliação no próprio corpus: a hipótese do orientador.
+    proprio = {}
+    f1_a_proprio = [resultados['particoes'][s]['f1_proprio']['real'] for s in sementes]
+    f1_b_proprio = [media([resultados['particoes'][s]['f1_proprio'][v] for v in versoes])
+                    for s in sementes]
+    proprio['f1_real'] = {'media': round(media(f1_a_proprio), 4),
+                          'desvio': round(desvio(f1_a_proprio), 4)}
+    proprio['f1_surrogates'] = {'media': round(media(f1_b_proprio), 4),
+                                'desvio': round(desvio(f1_b_proprio), 4)}
+    proprio['B_menos_A'] = resumir_diferencas(
+        [b - a for a, b in zip(f1_a_proprio, f1_b_proprio)], tamanhos[0], tamanhos[1],
+        args.delta)
+    for braco in ('placeholder', 'celebridade'):
+        f1_c = [resultados['particoes'][s]['f1_proprio'][braco] for s in sementes]
+        proprio[f'f1_{braco}'] = {'media': round(media(f1_c), 4),
+                                  'desvio': round(desvio(f1_c), 4)}
+        proprio[f'{braco}_menos_A'] = resumir_diferencas(
+            [c - a for a, c in zip(f1_a_proprio, f1_c)], tamanhos[0], tamanhos[1],
+            args.delta)
+    resumo['avaliacao_no_proprio_corpus'] = proprio
 
     resultados['resumo'] = resumo
     with open(caminho_saida, 'w', encoding='utf-8') as arquivo:
